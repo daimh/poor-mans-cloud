@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+function help() {
+	if [[ "$(file -b $(readlink -f /proc/$$/fd/255) )" != "Bourne-Again shell script, "* && "$(file -b $(readlink -f /proc/$$/fd/255) )" != *" bash script, "* ]]
+	then
+		echo "ERR-9999: exec file doesn't report correct type, contact developer"
+		exit 1
+	fi
+	if [ "$1" = "" ]
+	then
+		cat /proc/$$/fd/255 | sed -n '/\tcase /,/\t--)/p' | grep -e "	-\|^#" | grep -ve "--)" | sed -e "s/^#//" | fold -s
+	else
+		echo "$1"
+	fi
+	exit 1
+}
+function element_in_array() {
+	local e match="$1"
+	shift
+	for e
+	do 
+		[[ "$e" == "$match" ]] && return 0
+	done
+	return 1
+}
+function delete_vm_from_pm() {
+	ssh -T $2 << EOF
+if virsh dominfo $1 &> /dev/null
+then
+	virsh destroy $1
+	virsh undefine $1
+fi
+if drbdadm status $1 &> /dev/null
+then
+	drbdadm down $1
+fi
+if lvdisplay $VG_NAME/$1 &> /dev/null
+then
+	lvchange -an $VG_NAME/$1 
+	lvremove $VG_NAME/$1 
+fi
+if [ -f /etc/drbd.d/$1.res ]
+then
+	echo rm /etc/drbd.d/$1.res
+	rm /etc/drbd.d/$1.res
+fi
+exit 0
+EOF
+}
+function wait_for_drbd_on_pm () {
+	for ((i=0; i<100; i++))
+	do
+		ssh $2 drbdadm status $1 |grep -q "disk:UpToDate" && return 0
+		sleep 1
+	done
+	help "ERR-2400: drbd failure on host ${PMS[0]}"
+}
+function get_pm_vm_list() {
+	for PM in ${PM_LIST[@]}
+	do
+		ssh -T $PM << EOF 
+	virsh list --all |tail -n +3| sed "/^$/d; s/shut off/shutoff/" |cut -c 7-  | while read VM STAT
+	do
+		DRBD=\$(drbdadm status \$VM 2> /dev/null | grep "^  disk:" | cut -c 8-)
+		VID=\$(grep "device /dev/drbd" /etc/drbd.d/\$VM.res | sed -e "s/.* minor //; s/;//")
+		MEM=\$(virsh dominfo \$VM |grep "Max memory" |sed -e "s/\s\s*/ /g" |cut -d " " -f 3)
+		echo -e "\$VM\t\$STAT\t$PM\t\$DRBD\t\$VID\t\$MEM"
+	done
+	exit 0
+EOF
+done
+}

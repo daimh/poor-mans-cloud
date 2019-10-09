@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#20190926 archive
+#20190820
+set -e
+. /etc/pmc.conf
+OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+while :
+do
+	case "$1" in
+#SYNOPSIS:
+#	pmc-pm-init [OPTION]... PM
+#DESCRIPTION:
+#	initialize PM
+#EXAMPLE:
+#	pmc-pm-init -v PM
+		-h | --help)
+			help ;;
+		-v | --verbose)	#optional, verbose
+			set -x
+			shift ;;
+		--)
+			PM=$2
+			shift 2 || help "ERR-1001: PM name is missing"
+			break ;;
+		*)
+			break ;;
+	esac
+done
+element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
+for N in "${PM_LIST[@]}"
+do
+	[ "$N" == "$PM" ] && continue
+	ssh $N "ssh $PM hostname || ssh-keyscan -t rsa $PM >> /root/.ssh/known_hosts" &> /dev/null
+	ssh $PM "ssh $N hostname || ssh-keyscan -t rsa $N >> /root/.ssh/known_hosts" &> /dev/null
+done
+ssh -T $PM << EOF
+set -e
+if [ -f /etc/arch-release ]
+then
+	pacman -S --needed libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3
+fi
+echo '##checking python'
+python --version
+echo '##checking drbd'
+modprobe drbd
+cat /proc/drbd
+echo '##checking libvirtd'
+systemctl start libvirtd
+systemctl enable libvirtd
+virsh list
+echo '##checking br0'
+ip a s br0
+echo '##checking vg'
+vgdisplay $VG_NAME
+echo '##PASS'
+EOF

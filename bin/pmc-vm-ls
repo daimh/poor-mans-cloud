@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#20190820
+set -e
+. /etc/pmc.conf
+OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+while :
+do
+	case "$1" in
+#SYNOPSIS:
+#	pmc-vm-ls [OPTION]... 
+#EXAMPLE:
+#	pmc-vm-ls
+		-h | --help)
+			help ;;
+		-v | --verbose)	#optional, verbose
+			set -x
+			shift ;;
+		--)
+			shift ;;
+		*)
+			break ;;
+	esac
+done
+if [ $# -ne 0 ]
+then
+	help "ERR-4002: use -h/--help"
+fi
+
+get_pm_vm_list | sort -t '	' -k 1,1 | python -c "
+import sys
+def print_vm(lst):
+	if len(lst) == 0: return
+	running = '-'
+	vid = None
+	for fs in lst:
+		if fs[1] == 'running':
+			running = fs[2]
+		if vid is None:
+			vid = fs[4]
+		elif vid != fs[4]:
+			raise Exception('ERR-4003')
+	print(lst[0][0], lst[0][4], running, '\t'.join(['%s:%s\t%d' % (fs[2], fs[3], int(fs[5])/1048576) for fs in lst]), sep='\t')
+
+def main():
+	print('VM', 'VID', 'RUNNING', 'DRBD...', 'MEM(G)...', sep='\t')
+	vm, lst = None, []
+	for ln in sys.stdin:
+		fs = ln[:-1].split('\t')
+		if fs[0] != vm:
+			print_vm(lst)
+			vm, lst = fs[0], []
+		lst.append(fs)
+	print_vm(lst)
+if __name__ == '__main__': main()
+"

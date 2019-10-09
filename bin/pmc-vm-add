@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+#20190926 archive
+#20190924 minor bug fix
+#20190820
+set -e
+. /etc/pmc.conf
+function read_yes_no() {
+	while :
+	do
+		read -p "${1}? (Y/n)" CONT
+		if [ "$CONT" = "" -o "$CONT" = "y" -o "$CONT" = "Y" ]
+		then
+			return 0
+		elif [ "$CONT" = "n" -o "$CONT" = "N" ]
+		then
+			return 1
+		else
+				echo "enter 'y' or 'n' only."
+		fi
+	done
+}
+function set_drbd() {
+	for PM in ${PMS[@]}
+	do
+		ssh -T $PM << EOF
+echo "##DRBD@$PM"
+if [ -f /etc/drbd.d/$VM.res ]
+then
+	echo "ERR-2500: /etc/drbd.d/$VM.res already exists in host $PM, use 'pmc-vm-add -R' or 'pmc-vm-rm'"
+	exit 1
+fi
+if lvdisplay $VG_NAME/$VM 2> /dev/null
+then
+	echo "ERR-2501: $VG_NAME/$VM already exists in host $PM, use 'pmc-vm-rm'"
+	exit 1
+fi
+echo y | lvcreate -L ${STORAGE}G -n $VM $VG_NAME
+IP0=\$(host ${PMS[0]} | cut -d " " -f 4)
+if [ ${#PMS[@]} -gt 1 ]
+then
+	IP1=\$(host ${PMS[1]} | cut -d " " -f 4)
+fi
+let PORT=7778+$VID
+
+cat > /etc/drbd.d/$VM.res << EEOOFF
+resource $VM {
+	meta-disk internal;
+	device /dev/drbd$VID minor $VID;
+	disk /dev/$VG_NAME/$VM;
+	on ${PMS[0]} {
+		address \$IP0:\$PORT;
+	}
+EEOOFF
+if [ ${#PMS[@]} -gt 1 ]
+then
+cat >> /etc/drbd.d/$VM.res << EEOOFF
+	on ${PMS[1]} {
+		address \$IP1:\$PORT;
+	}
+EEOOFF
+fi
+cat >> /etc/drbd.d/$VM.res << EEOOFF
+	disk {
+		no-disk-flushes;
+	}
+	net {
+		allow-two-primaries yes;
+	}
+}
+EEOOFF
+drbdadm create-md --force $VM
+if [ ${#PMS[@]} -eq 1 ]
+then
+	drbdadm up $VM 2> /dev/null
+	drbdadm primary $VM --force
+else
+	drbdadm up $VM
+	if [ "$PM" = "${PMS[0]}" ]
+	then
+		drbdadm -- --overwrite-data-of-peer primary $VM
+	else
+		drbdadm disconnect $VM
+		drbdadm connect --discard-my-data $VM
+	fi
+fi
+EOF
+		[ $? -eq 0 ] || help "ERR-2608: set_drbd failed on host $PM"
+	done
+	return 0
+}
+
+function check_resource() {
+	for PM in ${PMS[@]}
+	do
+		element_in_array $PM "${PM_LIST[@]}" || help "ERR-2101: $PM is not defined in etc/pmc/pmc.conf"
+		if ! ssh -T $PM << EOF
+let rtn=0
+let MEMUSED=\$(virsh list --all --name | sed "/^$/d" | while read VM
+do
+	virsh dominfo $VM 2>/dev/null | grep "Max memory:"
+done | awk 'BEGIN{MEMUSED=0}{MEMUSED += \$3}END{print MEMUSED}'
+)
+let MEMTOTAL=\$(grep ^MemTotal: /proc/meminfo | sed -e "s/^MemTotal: *//; s/ kB//")
+if (( \$MEMTOTAL - \$MEMUSED < 1048576 ))
+then
+	echo "no enough memory"
+	let rtn=1
+fi
+if [ \$(vgdisplay --units=G $VG_NAME |grep "Free  PE" |cut -d "/" -f 3 |cut -d " " -f 2|sed -e "s/\\..*//") -le $STORAGE ]
+then
+	echo "$VG_NAME on $PM is getting full"
+	let rtn=1
+fi
+exit \$rtn
+EOF
+		then
+			if ! read_yes_no "Continue"
+			then
+				echo "#Quit"
+				exit 1
+			fi
+		fi
+	done
+}
+
+VIRT_INSTALL_OPTS=""
+ISO=""
+OPTS=$(getopt -o hvp:s:m:i:a:V: --long help,verbose,physical-machine:,storage:,memory:iso:,ip-address:,virt-install-options: -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+declare -a PMS
+while :
+do
+	case "$1" in
+#SYNOPSIS:
+#	pmc-vm-add [OPTION]... VM
+#EXAMPLE:
+#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -V "--nographics --pxe" win
+		-h | --help)
+			help ;;
+		-v | --verbose)	#optional, verbose
+			set -x
+			shift ;;
+		-p | --physical-machine) #mandatory, can be specified once or twice
+			PMS+=($2)
+			shift 2 ;;
+		-s | --storage)	#mandatory, unit G, or 'reuse' drbd device for advanced re-installation
+			STORAGE=$2
+			if [ "$STORAGE" != "reuse" ]
+			then
+				let STORAGE=$2
+			fi
+			shift 2 ;;
+		-m | --memory) #mandatory, unit G
+			let MEMORY=1024*$2
+			shift 2 ;;
+		-i | --iso) #optional, iso file for installation
+			ISO=$2
+			shift 2 ;;
+		-a | --ip-address) #optional, VM's IPV4 address if it cannot be solved by DNS server
+			IP=$2
+			shift 2 ;;
+		-V | --virt-install-options) #optional virt-install options
+			VIRT_INSTALL_OPTS="$2"
+			shift 2 ;;
+		--)
+			VM=$2
+			shift 2 || help "ERR-2001: VM is missing"
+			break ;;
+		*)
+			break ;;
+	esac
+done
+if [ $# -ne 0 ]
+then
+	help "ERR-2002: use -h/--help"
+elif [ ${#PMS[@]} -eq 0 ]
+then
+	help "ERR-2003: -p/--physical-machine is mandatory"
+elif [ "$STORAGE" = "" ]
+then
+	help "ERR-2005: -s/--storage is wrong"
+elif [ "$STORAGE" != "reuse" -a  "$STORAGE" = "0" ]
+then
+	help "ERR-2005: -s/--storage is wrong"
+elif [ "$MEMORY" = "" ]
+then
+	help "ERR-2006: -m/--memory is wrong"
+elif [ $MEMORY -eq 0 ]
+then
+	help "ERR-2007: -m/--memory is wrong"
+elif ! echo $VM | egrep -q '^[a-z0-9-]+$'
+then
+	help "ERR-2008: $VM should be [a-z0-9-]"
+elif [ ${#PMS[@]} -ne 1 -a ${#PMS[@]} -ne 2 ]
+then
+	help "ERR-2009: up to two -p are supported for now"
+fi
+
+check_resource
+if [ "$ISO" != "" ]
+then
+	rsync -a --progress $PMC_HOME/usr/lib/pmc/iso/$ISO.iso ${PMS[0]}:/var/lib/libvirt/images/iso/
+fi
+for PM in ${PM_LIST[@]}
+do
+	ssh $PM virsh dominfo $VM 2> /dev/null | grep -q "State:          running" && help "ERR-2011: $VM is running on $PM, run \"pmc-vm-rm $VM\" or stop the VM before running 'pmc-vm-add -R'"
+done
+
+if [ "$IP" = "" ]
+then
+	IP=$(host $VM) 
+	[ "$IP" != "" ] || help "ERR-2012: $VM not in DNS"
+elif [[ ! $IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
+then
+		help "ERR-2013: invalid IP address $IP"
+fi
+IP=$(echo $IP | cut -d " " -f 4)
+MAC=$( (echo "obase=16;"; echo $IP | cut -d . -f 3- |sed -e "s/\./\n/g" ) | bc  | sed -e "s/^.$/0&/" | sed -e "N; s/\n/:/g" | sed -e "s/^/52:54:00:$MAC4:/" )
+let VID=$( echo $MAC | cut -c 13- | sed -e "s/^/ibase=16;\n/; s/://g" | bc )
+
+##Set storage
+if [ ${#PMS[@]} -le 2 ]
+then
+	DISK=/dev/drbd$VID
+	if [ "$STORAGE" != "reuse" ]
+	then
+		set_drbd
+	fi
+	wait_for_drbd_on_pm $VM ${PMS[0]}
+	if [ ${#PMS[@]} -eq 2 ]
+	then
+		DISABLE=$(join -v 1 -v 2 <(ssh ${PMS[0]} grep flags /proc/cpuinfo | sort -u | cut -d : -f 2 |sed -e "s/ //" | sed -e "s/ /\n/g" | sort) <(ssh ${PMS[1]} grep flags /proc/cpuinfo | sort -u | cut -d : -f 2 |sed -e "s/ //" | sed -e "s/ /\n/g" | sort) |grep -v -f $PMC_HOME/usr/lib/pmc/excluded_disable_features | sed -e "s/^/,disable=/" | tr -d "\n" )
+	fi
+else
+	help 'ERR-2017: three or more PM are not supported yet'
+	exit 1
+fi
+
+#INSTALL
+ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
+if [ "$ISO" = "" ]
+then
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu host$DISABLE --network bridge=br0,mac=$MAC --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
+else
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu host$DISABLE --network bridge=br0,mac=$MAC --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
+fi
+#peers
+if [ ${#PMS[@]} -eq 2 ]
+then
+	ssh -T ${PMS[1]} << EOF
+virsh undefine $VM &> /dev/null || echo -n
+rsync -a ${PMS[0]}:/etc/libvirt/qemu/$VM.xml /etc/libvirt/qemu/
+virsh define /etc/libvirt/qemu/$VM.xml
+EOF
+fi
+echo "#Done!"

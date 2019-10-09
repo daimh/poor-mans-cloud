@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+#20190926 archive
+#20190820
+set -e
+. /etc/pmc.conf
+OPTS=$(getopt -o hvf:t: --long help,verbose,from-physical-machine:,to-physical-machine: -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+while :
+do
+	case "$1" in
+#SYNOPSIS:
+#	pmc-vm-recreate-peer [OPTION]... VM
+#EXAMPLE:
+#	pmc-vm-recreate-peer -p pm-1 win10
+		-h | --help)
+			help ;;
+		-v | --verbose)	#optional, verbose
+			set -x
+			shift ;;
+		-f | --from-physical-machine) #optional
+			PRIMARY=$2
+			host $PRIMARY &> /dev/null || help "ERR-7001: $PRIMARY is not a valid physical machine"
+			shift 2 ;;
+		-t | --to-physical-machine) #mandatory
+			NEW=$2
+			host $NEW &> /dev/null || help "ERR-7002: $NEW is not a valid physical machine"
+			shift 2 ;;
+		--)
+			VM=$2
+			shift 2 || help "ERR-7003: VM is missing"
+			break ;;
+		*)
+			break ;;
+	esac
+done
+if [ $# -ne 0 ]
+then
+	help "ERR-7004: use -h/--help"
+fi
+
+declare -a OLD
+for PM in ${PM_LIST[@]}
+do
+	read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue
+	if [ "$STATE" = "running" ]
+	then
+		if [ "$PRIMARY" = "" ]
+		then
+			PRIMARY=$PM
+		elif [ "$PRIMARY" != "$PM" ]
+		then
+			help "ERR-7005: the VM is running on $PM, but you specified \"-f $PRIMARY\""
+		fi
+	elif [ "$STATE" = "shut off" ]
+	then
+		OLD+=($PM)
+	fi
+done
+[ "$PRIMARY" != "" ] || help "ERR-7006: invalid $VM. If it is not running, please specify -f"
+for OPM in ${OLD[@]}
+do
+	[ "$OPM" == "$PRIMARY" ] && continue
+	if [ "$OPM" = "$NEW" ] 
+	then
+		read -p "Re-creating drbd device $VM on $OPM, type \"$OPM\" to continue: " ANS
+	else
+		read -p "Deleting drbd device $VM on $OPM, type \"$OPM\" to continue: " ANS
+	fi
+	if [ "$ANS" != "$OPM" ]
+	then
+		echo "#Quit"
+		exit 1
+	fi
+	delete_vm_from_pm $VM $OLD
+done
+IPP=$(host $PRIMARY | cut -d " " -f 4)
+[ "$IPP" != "" ] || help "ERR-7007: cannot resolve $PRIMARY to ip address"
+IPS=$(host $NEW | cut -d " " -f 4)
+[ "$IPS" != "" ] || help "ERR-7008: cannot resolve $NEW to ip address"
+ssh -T $PRIMARY << EOF
+	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
+	let PORT=7778+\$VID
+	sed -e "/\ton /I,+2 d" /etc/drbd.d/$VM.res | sed -e "s/\tdisk {/\ton $PRIMARY {\n\t\taddress $IPP:\$PORT;\n\t}\n\ton $NEW {\n\t\taddress $IPS:\$PORT;\n\t}\n\tdisk {/" > /etc/drbd.d/$VM.res.new
+	cp /etc/drbd.d/$VM.res /etc/drbd.d/$VM.res.old
+	mv /etc/drbd.d/$VM.res.new /etc/drbd.d/$VM.res
+	drbdadm adjust $VM
+	rsync -a /etc/drbd.d/$VM.res $NEW:/etc/drbd.d/
+	rsync -a /etc/libvirt/qemu/$VM.xml $NEW:/etc/libvirt/qemu/
+EOF
+STORAGE=$(ssh -n $PRIMARY lvdisplay $VG_NAME/$VM | grep "Current LE" | sed -e "s/\s\s*/ /g" | cut -d " " -f 4)
+ssh -T $NEW << EOF
+	echo y | lvcreate -l $STORAGE -n $VM $VG_NAME
+	drbdadm create-md $VM --force
+	drbdadm up $VM
+	drbdadm disconnect $VM
+	drbdadm connect --discard-my-data $VM
+	virsh define /etc/libvirt/qemu/$VM.xml
+EOF

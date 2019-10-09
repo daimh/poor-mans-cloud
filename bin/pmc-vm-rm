@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#20190820
+set -e
+. /etc/pmc.conf
+OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+while :
+do
+	case "$1" in
+#SYNOPSIS:
+#	pmc-vm-rm [OPTION]... VM
+#EXAMPLE:
+#	pmc-vm-rm wsus
+		-h | --help)
+			help ;;
+		-v | --verbose)	#optional, verbose
+			set -x
+			shift ;;
+		--)
+			VM=$2
+			shift 2 || help "ERR-3001: VM is missing"
+			break ;;
+		*)
+			break ;;
+	esac
+done
+if [ $# -ne 0 ]
+then
+	help "ERR-3002: use -h/--help"
+fi
+
+read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS
+if [ "$ANS" != "$VM" ]
+then
+	echo "#Quit"
+	exit 1
+fi
+
+##Set/Get IP and Mac
+for PM in ${PM_LIST[@]}
+do
+	echo "#checking $PM"
+	delete_vm_from_pm $VM $PM
+done
