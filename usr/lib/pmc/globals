@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 function help() {
-	if [[ "$(file -b $(readlink -f /proc/$$/fd/255) )" != "Bourne-Again shell script, "* && "$(file -b $(readlink -f /proc/$$/fd/255) )" != *" bash script, "* ]]
-	then
-		echo "ERR-9999: exec file doesn't report correct type, contact developer"
-		exit 1
-	fi
 	if [ "$1" = "" ]
 	then
 		cat /proc/$$/fd/255 | sed -n '/\tcase /,/\t--)/p' | grep -e "	-\|^#" | grep -ve "--)" | sed -e "s/^#//" | fold -s

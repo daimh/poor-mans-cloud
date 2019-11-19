@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20191119 PM:DRBD:MEM
 #20190820
 set -e
 . /etc/pmc.conf
@@ -40,10 +41,10 @@ def print_vm(lst):
 			vid = fs[4]
 		elif vid != fs[4]:
 			raise Exception('ERR-4003')
-	print(lst[0][0], lst[0][4], running, '\t'.join(['%s:%s\t%d' % (fs[2], fs[3], int(fs[5])/1048576) for fs in lst]), sep='\t')
+	print(lst[0][0], lst[0][4], running, '\t'.join(['%s:%s:%d' % (fs[2], fs[3], int(fs[5])/1048576) for fs in lst]), sep='\t')
 
 def main():
-	print('VM', 'VID', 'RUNNING', 'DRBD...', 'MEM(G)...', sep='\t')
+	print('VM', 'VID', 'AT', 'PM:DRBD:MEM(G)...', sep='\t')
 	vm, lst = None, []
 	for ln in sys.stdin:
 		fs = ln[:-1].split('\t')
