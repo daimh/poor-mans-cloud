@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20191124 .lock
 #20191119 -b
 #20190926 archive
 #20190820
@@ -62,11 +63,11 @@ ssh -T $SECONDARY << EOF
 	drbdadm primary $VM
 	if [ "$BASE" = "Y" ]
 	then
-		dd if=/dev/drbd\$VID of=$TS.base bs=16M status=progress
+		flock .lock dd if=/dev/drbd\$VID of=$TS.base bs=16M status=progress
 	else
 		BASE="\$( ls -t *.base | head -n 1 )"
 		[ "\$BASE" != "" ] || help "ERR-8006: no base image exists under $SECONDARY:$ARCHIVE_DIR/$VM/"
-		xdelta3 -e -S djw -s "\$BASE" /dev/drbd\$VID $TS.xdelta3
+		flock -s .lock xdelta3 -e -S djw -s "\$BASE" /dev/drbd\$VID $TS.xdelta3
 	fi
 	drbdadm secondary $VM
 EOF
