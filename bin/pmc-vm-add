@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#20190926 archive
+#20190926 backup
 #20190924 minor bug fix
 #20190820
 set -e
@@ -23,10 +23,11 @@ function set_drbd() {
 	for PM in ${PMS[@]}
 	do
 		ssh -T $PM << EOF
+$VERBOSE
 echo "##DRBD@$PM"
 if [ -f /etc/drbd.d/$VM.res ]
 then
-	echo "ERR-2500: /etc/drbd.d/$VM.res already exists in host $PM, use 'pmc-vm-add -R' or 'pmc-vm-rm'"
+	echo "ERR-2500: /etc/drbd.d/$VM.res already exists in host $PM, use 'pmc-vm-rm'"
 	exit 1
 fi
 if lvdisplay $VG_NAME/$VM 2> /dev/null
@@ -94,6 +95,7 @@ function check_resource() {
 	do
 		element_in_array $PM "${PM_LIST[@]}" || help "ERR-2101: $PM is not defined in etc/pmc/pmc.conf"
 		if ! ssh -T $PM << EOF
+$VERBOSE
 let rtn=0
 let MEMUSED=\$(virsh list --all --name | sed "/^$/d" | while read VM
 do
@@ -134,11 +136,12 @@ do
 #SYNOPSIS:
 #	pmc-vm-add [OPTION]... VM
 #EXAMPLE:
-#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -V "--nographics --pxe" win
+#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -V "--nographics --pxe" test-vm
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		-p | --physical-machine) #mandatory, can be specified once or twice
 			PMS+=($2)
@@ -153,10 +156,10 @@ do
 		-m | --memory) #mandatory, unit G
 			let MEMORY=1024*$2
 			shift 2 ;;
-		-i | --iso) #optional, iso file for installation
+		-i | --iso) #optional, an installation iso file under usr/lib/pmc/iso/
 			ISO=$2
 			shift 2 ;;
-		-a | --ip-address) #optional, VM's IPV4 address if it cannot be solved by DNS server
+		-a | --ip-address) #optional, VM's IPV4 address if the hostname cannot be solved at DNS server
 			IP=$2
 			shift 2 ;;
 		-V | --virt-install-options) #optional virt-install options
@@ -179,7 +182,7 @@ then
 elif [ "$STORAGE" = "" ]
 then
 	help "ERR-2005: -s/--storage is wrong"
-elif [ "$STORAGE" != "reuse" -a  "$STORAGE" = "0" ]
+elif [ "$STORAGE" != "reuse" -a "$STORAGE" = "0" ]
 then
 	help "ERR-2005: -s/--storage is wrong"
 elif [ "$MEMORY" = "" ]
@@ -208,14 +211,14 @@ done
 
 if [ "$IP" = "" ]
 then
-	IP=$(host $VM) 
+	IP=$(host $VM) || help "ERR-2012: $VM not in DNS"
 	[ "$IP" != "" ] || help "ERR-2012: $VM not in DNS"
 elif [[ ! $IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
 then
 		help "ERR-2013: invalid IP address $IP"
 fi
 IP=$(echo $IP | cut -d " " -f 4)
-MAC=$( (echo "obase=16;"; echo $IP | cut -d . -f 3- |sed -e "s/\./\n/g" ) | bc  | sed -e "s/^.$/0&/" | sed -e "N; s/\n/:/g" | sed -e "s/^/52:54:00:$MAC4:/" )
+MAC=$( (echo "obase=16;"; echo $IP | cut -d . -f 3- |sed -e "s/\./\n/g" ) | bc | sed -e "s/^.$/0&/" | sed -e "N; s/\n/:/g" | sed -e "s/^/52:54:00:$MAC4:/" )
 let VID=$( echo $MAC | cut -c 13- | sed -e "s/^/ibase=16;\n/; s/://g" | bc )
 
 ##Set storage
@@ -229,7 +232,7 @@ then
 	wait_for_drbd_on_pm $VM ${PMS[0]}
 	if [ ${#PMS[@]} -eq 2 ]
 	then
-		DISABLE=$(join -v 1 -v 2 <(ssh ${PMS[0]} grep flags /proc/cpuinfo | sort -u | cut -d : -f 2 |sed -e "s/ //" | sed -e "s/ /\n/g" | sort) <(ssh ${PMS[1]} grep flags /proc/cpuinfo | sort -u | cut -d : -f 2 |sed -e "s/ //" | sed -e "s/ /\n/g" | sort) |grep -v -f $PMC_HOME/usr/lib/pmc/excluded_disable_features | sed -e "s/^/,disable=/" | tr -d "\n" )
+		DISABLE=$(join -v 1 -v 2 <(ssh ${PMS[0]} virsh capabilities |grep "feature name=" | cut -d \' -f 2 |sort ) <(ssh ${PMS[1]} virsh capabilities |grep "feature name=" | cut -d \' -f 2 |sort) | sed -e "s/^/,disable=/" | tr -d "\n" )
 	fi
 else
 	help 'ERR-2017: three or more PM are not supported yet'
@@ -248,6 +251,7 @@ fi
 if [ ${#PMS[@]} -eq 2 ]
 then
 	ssh -T ${PMS[1]} << EOF
+$VERBOSE
 virsh undefine $VM &> /dev/null || echo -n
 rsync -a ${PMS[0]}:/etc/libvirt/qemu/$VM.xml /etc/libvirt/qemu/
 virsh define /etc/libvirt/qemu/$VM.xml

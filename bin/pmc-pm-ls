@@ -14,7 +14,8 @@ do
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		--)
 			shift ;;

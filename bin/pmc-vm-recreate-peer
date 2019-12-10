@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#20190926 archive
+#20190926 backup
 #20190820
 set -e
 . /etc/pmc.conf
@@ -15,7 +15,8 @@ do
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		-f | --from-physical-machine) #optional
 			PRIMARY=$2
@@ -78,6 +79,7 @@ IPP=$(host $PRIMARY | cut -d " " -f 4)
 IPS=$(host $NEW | cut -d " " -f 4)
 [ "$IPS" != "" ] || help "ERR-7008: cannot resolve $NEW to ip address"
 ssh -T $PRIMARY << EOF
+	$VERBOSE
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
 	let PORT=7778+\$VID
 	sed -e "/\ton /I,+2 d" /etc/drbd.d/$VM.res | sed -e "s/\tdisk {/\ton $PRIMARY {\n\t\taddress $IPP:\$PORT;\n\t}\n\ton $NEW {\n\t\taddress $IPS:\$PORT;\n\t}\n\tdisk {/" > /etc/drbd.d/$VM.res.new
@@ -89,6 +91,7 @@ ssh -T $PRIMARY << EOF
 EOF
 STORAGE=$(ssh -n $PRIMARY lvdisplay $VG_NAME/$VM | grep "Current LE" | sed -e "s/\s\s*/ /g" | cut -d " " -f 4)
 ssh -T $NEW << EOF
+	$VERBOSE
 	echo y | lvcreate -l $STORAGE -n $VM $VG_NAME
 	drbdadm create-md $VM --force
 	drbdadm up $VM

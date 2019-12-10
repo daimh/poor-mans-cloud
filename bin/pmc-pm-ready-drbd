@@ -16,7 +16,8 @@ do
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		--)
 			PM=$2
@@ -28,7 +29,9 @@ do
 done
 element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
 ssh -T $PM << EOF
+$VERBOSE
 set -e
+vgchange -ay $VG_NAME
 modprobe drbd
 cd /etc/drbd.d
 for VM in *.res;

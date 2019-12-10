@@ -14,7 +14,8 @@ do
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		--)
 			VM=$2
@@ -43,6 +44,7 @@ done
 [ "$PRIMARY" != "" ] || help "ERR-6003: no such a VM $VM"
 [ "$SECONDARY" != "" ] || help "ERR-6004: This VM is not created on two PMs"
 if ! ssh -T $SECONDARY << EOF
+	$VERBOSE
 	set -e
 	drbdadm primary $VM
 	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ]

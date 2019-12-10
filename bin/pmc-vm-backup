@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
 #20191124 .lock
 #20191119 -b
-#20190926 archive
+#20190926 backup
 #20190820
 set -e
 . /etc/pmc.conf
-[ "$ARCHIVE_DIR" != "" ] || help "ERR-8000: ARCHIVE_DIR is not defined in /etc/pmc.conf"
+[ "$VM_BACKUP_DIR" != "" ] || help "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
 OPTS=$(getopt -o bhv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while :
 do
 	case "$1" in
 #SYNOPSIS:
-#	pmc-vm-archive [OPTION]... VM
+#	pmc-vm-backup [OPTION]... VM
 #EXAMPLE:
-#	pmc-vm-archive wsus
+#	pmc-vm-backup wsus
 		-b | --base) #create base image
 			BASE=Y
 			shift ;;
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		--)
 			VM=$2
@@ -52,12 +53,13 @@ done
 HELP_FUNC=$(type help | tail -n +2)
 TS=$(date +%+4Y-%m-%d-%H-%M-%S)
 ssh -T $SECONDARY << EOF
+	$VERBOSE
 	[[ $- == *x* ]] && set -x
 	set -e
 	$HELP_FUNC
 	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ] || help "ERR-8005: This VM's drbd is not in a normal status"
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
-	cd "$ARCHIVE_DIR"
+	cd "$VM_BACKUP_DIR"
 	mkdir -p "$VM"
 	cd "$VM"
 	drbdadm primary $VM
@@ -66,7 +68,7 @@ ssh -T $SECONDARY << EOF
 		flock .lock dd if=/dev/drbd\$VID of=$TS.base bs=16M status=progress
 	else
 		BASE="\$( ls -t *.base | head -n 1 )"
-		[ "\$BASE" != "" ] || help "ERR-8006: no base image exists under $SECONDARY:$ARCHIVE_DIR/$VM/"
+		[ "\$BASE" != "" ] || help "ERR-8006: no base image exists under $SECONDARY:$VM_BACKUP_DIR/$VM/"
 		flock -s .lock xdelta3 -e -S djw -s "\$BASE" /dev/drbd\$VID $TS.xdelta3
 	fi
 	drbdadm secondary $VM

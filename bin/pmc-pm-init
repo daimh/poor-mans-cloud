@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#20190926 archive
+#20190926 backup
 #20190820
 set -e
 . /etc/pmc.conf
@@ -17,7 +17,8 @@ do
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
-			set -x
+			VERBOSE="set -x"
+			$VERBOSE
 			shift ;;
 		--)
 			PM=$2
@@ -34,12 +35,17 @@ do
 	ssh $N "ssh $PM hostname || ssh-keyscan -t rsa $PM >> /root/.ssh/known_hosts" &> /dev/null
 	ssh $PM "ssh $N hostname || ssh-keyscan -t rsa $N >> /root/.ssh/known_hosts" &> /dev/null
 done
+HELP_FUNC=$(type help | tail -n +2)
 ssh -T $PM << EOF
+$VERBOSE
 set -e
+$HELP_FUNC
 if [ -f /etc/arch-release ]
 then
 	pacman -S --needed libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3
 fi
+echo '##checking xdelta3'
+which xdelta3
 echo '##checking python'
 python --version
 echo '##checking drbd'
@@ -53,5 +59,7 @@ echo '##checking br0'
 ip a s br0
 echo '##checking vg'
 vgdisplay $VG_NAME
+echo '## VM_BACKUP_DIR'
+[ -d "$VM_BACKUP_DIR" ] || help "ERR-1003: $VM_BACKUP_DIR does not exist"
 echo '##PASS'
 EOF
