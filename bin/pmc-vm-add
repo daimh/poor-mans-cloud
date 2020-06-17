@@ -234,7 +234,7 @@ then
 	wait_for_drbd_on_pm $VM ${PMS[0]}
 	if [ ${#PMS[@]} -eq 2 ]
 	then
-		CPU=$( ssh ${PMS[0]} "virsh cpu-baseline <(virsh capabilities; ssh ${PMS[1]} virsh capabilities)" | grep "model fallback='allow'\|feature policy='require'" | sed -e "s/.*>\(.*\)<\/model>/\1/; s/.*name='\(.*\)'\/>/\1/" | sed -e :a -e "N;s/\n/,require=/;ta" )
+		CPU=$( ssh ${PMS[0]} "virsh cpu-baseline --migratable <(virsh capabilities; ssh ${PMS[1]} virsh capabilities)" | grep "<model \|feature policy='require'" | sed -e "s/.*>\(.*\)<\/model>/\1/; s/.*name='\(.*\)'\/>/\1/" | sed -e :a -e "N;s/\n/,require=/;ta" )
 		[ "$CPU" != "" ] || help 'ERR-2014: Incompatible CPU between the two hosts'
 	fi
 else
