@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+#20200617 virsh cpu-baseline
+#20200401 model=virtio/e1000
 #20190926 backup
 #20190924 minor bug fix
 #20190820
@@ -232,7 +234,8 @@ then
 	wait_for_drbd_on_pm $VM ${PMS[0]}
 	if [ ${#PMS[@]} -eq 2 ]
 	then
-		DISABLE=$(join -v 1 -v 2 <(ssh ${PMS[0]} virsh capabilities |grep "feature name=" | cut -d \' -f 2 |sort ) <(ssh ${PMS[1]} virsh capabilities |grep "feature name=" | cut -d \' -f 2 |sort) | sed -e "s/^/,disable=/" | tr -d "\n" )
+		CPU=$( ssh ${PMS[0]} "virsh cpu-baseline <(virsh capabilities; ssh ${PMS[1]} virsh capabilities)" | grep "model fallback='allow'\|feature policy='require'" | sed -e "s/.*>\(.*\)<\/model>/\1/; s/.*name='\(.*\)'\/>/\1/" | sed -e :a -e "N;s/\n/,require=/;ta" )
+		[ "$CPU" != "" ] || help 'ERR-2014: Incompatible CPU between the two hosts'
 	fi
 else
 	help 'ERR-2017: three or more PM are not supported yet'
@@ -243,9 +246,9 @@ fi
 ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
 if [ "$ISO" = "" ]
 then
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu host$DISABLE --network bridge=br0,mac=$MAC --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu $CPU --network bridge=br0,mac=$MAC,model=virtio --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
 else
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu host$DISABLE --network bridge=br0,mac=$MAC --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu $CPU --network bridge=br0,mac=$MAC,model=e1000 --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
 fi
 #peers
 if [ ${#PMS[@]} -eq 2 ]
