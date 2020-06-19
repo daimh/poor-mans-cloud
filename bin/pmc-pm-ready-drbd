@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20200616 sleep
 #20190820
 set -e
 . /etc/pmc.conf
@@ -32,6 +33,7 @@ ssh -T $PM << EOF
 $VERBOSE
 set -e
 vgchange -ay $VG_NAME
+sleep 3
 modprobe drbd
 cd /etc/drbd.d
 for VM in *.res;
