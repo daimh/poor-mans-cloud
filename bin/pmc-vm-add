@@ -129,7 +129,7 @@ EOF
 
 VIRT_INSTALL_OPTS=""
 ISO=""
-OPTS=$(getopt -o hvp:s:m:i:a:V: --long help,verbose,physical-machine:,storage:,memory:iso:,ip-address:,virt-install-options: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvp:s:m:c:i:a:V: --long help,verbose,physical-machine:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 declare -a PMS
 while :
@@ -138,7 +138,7 @@ do
 #SYNOPSIS:
 #	pmc-vm-add [OPTION]... VM
 #EXAMPLE:
-#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -V "--nographics --pxe" test-vm
+#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe" test-vm
 		-h | --help)
 			help ;;
 		-v | --verbose)	#optional, verbose
@@ -157,6 +157,9 @@ do
 			shift 2 ;;
 		-m | --memory) #mandatory, unit G
 			let MEMORY=1024*$2
+			shift 2 ;;
+		-c | --vcpus) #mandatory, Number of virtual cpus
+			let VCPUS=$2
 			shift 2 ;;
 		-i | --iso) #optional, an installation iso file under usr/lib/pmc/iso/
 			ISO=$2
@@ -183,16 +186,22 @@ then
 	help "ERR-2003: -p/--physical-machine is mandatory"
 elif [ "$STORAGE" = "" ]
 then
-	help "ERR-2005: -s/--storage is wrong"
+	help "ERR-2004: -s/--storage is wrong"
 elif [ "$STORAGE" != "reuse" -a "$STORAGE" = "0" ]
 then
-	help "ERR-2005: -s/--storage is wrong"
+	help "ERR-2004: -s/--storage is wrong"
 elif [ "$MEMORY" = "" ]
 then
-	help "ERR-2006: -m/--memory is wrong"
-elif [ $MEMORY -eq 0 ]
+	help "ERR-2005: -m/--memory is wrong"
+elif [ $MEMORY -le 0 ]
 then
-	help "ERR-2007: -m/--memory is wrong"
+	help "ERR-2005: -m/--memory is wrong"
+elif [ "$VCPUS" = "" ]
+then
+	help "ERR-2006: -c/--vcpus is wrong"
+elif [ "$VCPUS" -le 0 ]
+then
+	help "ERR-2006: -c/--vcpus is wrong"
 elif ! echo $VM | egrep -q '^[a-z0-9-]+$'
 then
 	help "ERR-2008: $VM should be [a-z0-9-]"
@@ -248,9 +257,9 @@ fi
 ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
 if [ "$ISO" = "" ]
 then
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu $CPU --network bridge=br0,mac=$MAC,model=virtio --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus $VCPUS --cpu $CPU --network bridge=br0,mac=$MAC,model=virtio --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
 else
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus=8 --cpu $CPU --network bridge=br0,mac=$MAC,model=e1000 --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
+	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus $VCPUS --cpu $CPU --network bridge=br0,mac=$MAC,model=e1000 --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
 fi
 #peers
 if [ ${#PMS[@]} -eq 2 ]
