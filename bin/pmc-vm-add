@@ -236,6 +236,8 @@ then
 	then
 		CPU=$( ssh ${PMS[0]} "virsh cpu-baseline --migratable <(virsh capabilities; ssh ${PMS[1]} virsh capabilities)" | grep "<model \|feature policy='require'" | sed -e "s/.*>\(.*\)<\/model>/\1/; s/.*name='\(.*\)'\/>/\1/" | sed -e :a -e "N;s/\n/,require=/;ta" )
 		[ "$CPU" != "" ] || help 'ERR-2014: Incompatible CPU between the two hosts'
+	else
+		CPU=host
 	fi
 else
 	help 'ERR-2017: three or more PM are not supported yet'
