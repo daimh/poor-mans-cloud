@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20200928 more packages added to pacman
 #20190926 backup
 #20190820
 set -e
@@ -42,8 +43,10 @@ set -e
 $HELP_FUNC
 if [ -f /etc/arch-release ]
 then
-	pacman -S --needed libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3
+	pacman -S --needed --noconfirm libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3 which lvm2
 fi
+echo '##checking drbdadm'
+which drbdadm
 echo '##checking xdelta3'
 which xdelta3
 echo '##checking python'
