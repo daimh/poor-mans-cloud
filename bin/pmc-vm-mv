@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20201003 ssh -n for batch processing
 #20200619
 #20190820
 set -e
@@ -54,9 +55,9 @@ then
 	help "ERR-6005: This VM's drbd is not in a normal status"
 fi
 echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
-if ssh $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
+if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
 then
-	ssh $PRIMARY drbdadm secondary $VM
+	ssh -n $PRIMARY drbdadm secondary $VM
 else
-	ssh $SECONDARY drbdadm secondary $VM
+	ssh -n $SECONDARY drbdadm secondary $VM
 fi

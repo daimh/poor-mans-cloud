@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#20201003 hostname check, EOF to quote
 #20200928 more packages added to pacman
 #20190926 backup
 #20190820
@@ -30,20 +31,16 @@ do
 	esac
 done
 element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
-for N in "${PM_LIST[@]}"
-do
-	[ "$N" == "$PM" ] && continue
-	ssh $N "ssh $PM hostname || ssh-keyscan -t rsa $PM >> /root/.ssh/known_hosts" &> /dev/null
-	ssh $PM "ssh $N hostname || ssh-keyscan -t rsa $N >> /root/.ssh/known_hosts" &> /dev/null
-done
 HELP_FUNC=$(type help | tail -n +2)
-ssh -T $PM << EOF
+ssh -t $PM "
 $VERBOSE
 set -e
 $HELP_FUNC
+echo '##checking hostname'
+[ \"\$(hostname)\" = \"$PM\" ]
 if [ -f /etc/arch-release ]
 then
-	pacman -S --needed --noconfirm libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3 which lvm2
+	pacman -S --needed libvirt qemu virt-install virt-viewer openbsd-netcat python xdelta3 which lvm2
 fi
 echo '##checking drbdadm'
 which drbdadm
@@ -63,6 +60,12 @@ ip a s br0
 echo '##checking vg'
 vgdisplay $VG_NAME
 echo '## VM_BACKUP_DIR'
-[ -d "$VM_BACKUP_DIR" ] || help "ERR-1003: $VM_BACKUP_DIR does not exist"
+[ -d \"$VM_BACKUP_DIR\" ] || help \"ERR-1003: $VM_BACKUP_DIR does not exist\"
 echo '##PASS'
-EOF
+"
+for N in "${PM_LIST[@]}"
+do
+	[ "$N" == "$PM" ] && continue
+	ssh $N "ssh $PM hostname || ssh-keyscan -t rsa $PM >> /root/.ssh/known_hosts" &> /dev/null
+	ssh $PM "ssh $N hostname || ssh-keyscan -t rsa $N >> /root/.ssh/known_hosts" &> /dev/null
+done
