@@ -76,3 +76,23 @@ build and manage a simple but high-availability cloud with open source software 
 libvirt-5.8.0-2  
 linux-5.3.10.1-1  
 drbd-utils-9.11.0-1  
+
+## Copyright
+
+Developed by [Manhong Dai](mailto:daimh@umich.edu)
+
+Copyright © 2020 University of Michigan. License [GPLv3+](https://gnu.org/licenses/gpl.html): GNU GPL version 3 or later 
+
+This is free software: you are free to change and redistribute it.
+
+There is NO WARRANTY, to the extent permitted by law.
+
+## Acknowledgment
+
+Ruth Freedman, MPH, former administrator of MNI, UMICH
+
+Fan Meng, Ph.D., Research Associate Professor, Psychiatry, UMICH
+
+Huda Akil, Ph.D., Director of MNI, UMICH
+
+Stanley J. Watson, M.D., Ph.D., Director of MNI, UMICH
