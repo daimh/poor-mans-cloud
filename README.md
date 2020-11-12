@@ -72,10 +72,8 @@ build and manage a simple but high-availability cloud with open source software 
   However, PMC consists of just a bunch of basic Linux commands, and you can add '-v' to each command to show how the commands are run.
 
 ## Status
-  As of December 2019, PMC is running well with these versions of software on Arch Linux. VM consists of Arch Linux, and a few Windows versions.  
-libvirt-5.8.0-2  
-linux-5.3.10.1-1  
-drbd-utils-9.11.0-1  
+-  2019-12, PMC was running stably with libvirt-5.8.0-2, linux-5.3.10.1-1 and drbd-utils-9.11.0-1 on Arch Linux. VM consists of Arch Linux, and a few Windows versions.  
+-  2020-11-12, libvirt-1:6.5.0-3, linux-5.9.8.arch1-1 and drbd-utils-9.11.0-1
 
 ## Copyright
 
