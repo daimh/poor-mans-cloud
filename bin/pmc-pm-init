@@ -3,7 +3,6 @@
 #20200928 more packages added to pacman
 #20190926 backup
 #20190820
-set -e
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
@@ -30,6 +29,7 @@ do
 			break ;;
 	esac
 done
+set -e
 element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
 HELP_FUNC=$(type help | tail -n +2)
 ssh -t $PM "

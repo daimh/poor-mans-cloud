@@ -3,7 +3,6 @@
 #20191119 -b
 #20190926 backup
 #20190820
-set -e
 . /etc/pmc.conf
 [ "$VM_BACKUP_DIR" != "" ] || help "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
 OPTS=$(getopt -o bhv --long help,verbose -n "$(basename $0)" -- "$@")
@@ -36,7 +35,7 @@ if [ $# -ne 0 ]
 then
 	help "ERR-8002: use -h/--help"
 fi
-
+set -e
 for PM in ${PM_LIST[@]}
 do
 	read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue

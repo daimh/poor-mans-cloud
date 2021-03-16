@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #20191119 PM:DRBD:MEM
 #20190820
-set -e
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
@@ -28,7 +27,7 @@ if [ $# -ne 0 ]
 then
 	help "ERR-4002: use -h/--help"
 fi
-
+set -e
 get_pm_vm_list | sort -t '	' -k 1,1 | python -c "
 import sys
 def print_vm(lst):

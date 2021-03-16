@@ -2,7 +2,6 @@
 #20201003 ssh -n for batch processing
 #20200619
 #20190820
-set -e
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
@@ -31,7 +30,7 @@ if [ $# -ne 0 ]
 then
 	help "ERR-6002: use -h/--help"
 fi
-
+set -e
 for PM in ${PM_LIST[@]}
 do
 	read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue

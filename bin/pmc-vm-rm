@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #20190820
-set -e
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
@@ -29,7 +28,7 @@ if [ $# -ne 0 ]
 then
 	help "ERR-3002: use -h/--help"
 fi
-
+set -e
 read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS
 if [ "$ANS" != "$VM" ]
 then

@@ -2,9 +2,8 @@
 #20200619
 #20190926 backup
 #20190820
-set -e
 . /etc/pmc.conf
-OPTS=$(getopt -o hvf:t: --long help,verbose,from-physical-machine:,to-physical-machine: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvF:t: --long help,verbose,from-physical-machine:,to-physical-machine: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while :
 do
@@ -19,7 +18,7 @@ do
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-f | --from-physical-machine) #optional
+		-F | --from-physical-machine) #optional
 			PRIMARY=$2
 			host $PRIMARY &> /dev/null || help "ERR-7001: $PRIMARY is not a valid physical machine"
 			shift 2 ;;
@@ -39,7 +38,7 @@ if [ $# -ne 0 ]
 then
 	help "ERR-7004: use -h/--help"
 fi
-
+set -e
 declare -a OLD
 for PM in ${PM_LIST[@]}
 do
@@ -51,14 +50,14 @@ do
 			PRIMARY=$PM
 		elif [ "$PRIMARY" != "$PM" ]
 		then
-			help "ERR-7005: the VM is running on $PM, but you specified \"-f $PRIMARY\""
+			help "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
 		fi
 	elif [ "$STATE" = "shut off" ]
 	then
 		OLD+=($PM)
 	fi
 done
-[ "$PRIMARY" != "" ] || help "ERR-7006: invalid $VM. If it is not running, please specify -f"
+[ "$PRIMARY" != "" ] || help "ERR-7006: invalid $VM. If it is not running, please specify -F"
 for OPM in ${OLD[@]}
 do
 	[ "$OPM" == "$PRIMARY" ] && continue

@@ -4,7 +4,6 @@
 #20190926 backup
 #20190924 minor bug fix
 #20190820
-set -e
 . /etc/pmc.conf
 function read_yes_no() {
 	while :
@@ -87,11 +86,15 @@ else
 	fi
 fi
 EOF
-		[ $? -eq 0 ] || help "ERR-2608: set_drbd failed on host $PM"
+		[ $? -eq 0 ] || help "ERR-2502: set_drbd failed on host $PM"
 	done
-	return 0
+	for ((i=0; i<100; i++))
+	do
+		ssh ${PMS[0]} drbdadm status $VM |grep -q "disk:UpToDate" && return 0
+		sleep 1
+	done
+	help "ERR-2503: drbd failure on host ${PMS[0]}"
 }
-
 function check_resource() {
 	for PM in ${PMS[@]}
 	do
@@ -110,10 +113,13 @@ then
 	echo "no enough memory"
 	let rtn=1
 fi
-if [ \$(vgdisplay --units=G $VG_NAME |grep "Free  PE" |cut -d "/" -f 3 |cut -d " " -f 2|sed -e "s/\\..*//") -le $STORAGE ]
+if [ "$STORAGE" != "reuse" ]
 then
-	echo "$VG_NAME on $PM is getting full"
-	let rtn=1
+	if [ \$(vgdisplay --units=G $VG_NAME |grep "Free  PE" |cut -d "/" -f 3 |cut -d " " -f 2|sed -e "s/\\..*//") -le $STORAGE ]
+	then
+		echo "$VG_NAME on $PM is getting full"
+		let rtn=1
+	fi
 fi
 exit \$rtn
 EOF
@@ -129,7 +135,7 @@ EOF
 
 VIRT_INSTALL_OPTS=""
 ISO=""
-OPTS=$(getopt -o hvp:s:m:c:i:a:V: --long help,verbose,physical-machine:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvp:s:m:c:i:a:V:C:F: --long help,verbose,physical-machine:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options:,clone-vm:clone-vm-from-physical-machine: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 declare -a PMS
 while :
@@ -170,6 +176,12 @@ do
 		-V | --virt-install-options) #optional virt-install options
 			VIRT_INSTALL_OPTS="$2"
 			shift 2 ;;
+		-C | --clone-vm) #optional, vm, clone VM
+			CLONEVM="$2"
+			shift 2 ;;
+		-F | --clone-vm-from-physical-machine) #optional, get VM's disk image from PM
+			CLONEPM=$2
+			shift 2 ;;
 		--)
 			VM=$2
 			shift 2 || help "ERR-2001: VM is missing"
@@ -186,19 +198,19 @@ then
 	help "ERR-2003: -p/--physical-machine is mandatory"
 elif [ "$STORAGE" = "" ]
 then
-	help "ERR-2004: -s/--storage is wrong"
+	help "ERR-2019: -s/--storage is wrong"
 elif [ "$STORAGE" != "reuse" -a "$STORAGE" = "0" ]
 then
 	help "ERR-2004: -s/--storage is wrong"
 elif [ "$MEMORY" = "" ]
 then
-	help "ERR-2005: -m/--memory is wrong"
+	help "ERR-2020: -m/--memory is wrong"
 elif [ $MEMORY -le 0 ]
 then
 	help "ERR-2005: -m/--memory is wrong"
 elif [ "$VCPUS" = "" ]
 then
-	help "ERR-2006: -c/--vcpus is wrong"
+	help "ERR-2021: -c/--vcpus is wrong"
 elif [ "$VCPUS" -le 0 ]
 then
 	help "ERR-2006: -c/--vcpus is wrong"
@@ -209,7 +221,22 @@ elif [ ${#PMS[@]} -ne 1 -a ${#PMS[@]} -ne 2 ]
 then
 	help "ERR-2009: up to two -p are supported for now"
 fi
-
+set -e
+if [ -n "$CLONEVM" ]
+then
+	if [ -z "$CLONEPM" ]
+	then
+		for PM in ${PMS[0]} ${PM_LIST[@]}
+		do
+			ssh -n $PM "drbdadm status $CLONEVM" | grep -q "^$CLONEVM role:Primary" || continue
+			CLONEPM=$PM
+			break
+		done
+	else
+		ssh -n $CLONEPM "drbdadm status $CLONEVM" | grep -q "^$CLONEVM role:Primary" || help "ERR-2010: drbd resource $CLONEVM is not in primary status on $CLONEPM"
+	fi
+	echo $CLONEPM
+fi
 check_resource
 if [ "$ISO" != "" ]
 then
@@ -222,7 +249,7 @@ done
 
 if [ "$IP" = "" ]
 then
-	IP=$(host $VM) || help "ERR-2012: $VM not in DNS"
+	IP=$(host $VM) || help "ERR-2018: $VM not in DNS"
 	[ "$IP" != "" ] || help "ERR-2012: $VM not in DNS"
 elif [[ ! $IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
 then
@@ -239,8 +266,10 @@ then
 	if [ "$STORAGE" != "reuse" ]
 	then
 		set_drbd
+	else
+		ssh -n ${PMS[0]} drbdadm status $VM || help "ERR-2007: Drbd resource $VM does not exist on ${PMS[0]}"
+		exit 9
 	fi
-	wait_for_drbd_on_pm $VM ${PMS[0]}
 	if [ ${#PMS[@]} -eq 2 ]
 	then
 		CPU=$( ssh ${PMS[0]} "virsh cpu-baseline --migratable <(virsh capabilities; ssh ${PMS[1]} virsh capabilities)" | grep "<model \|feature policy='require'" | sed -e "s/.*>\(.*\)<\/model>/\1/; s/.*name='\(.*\)'\/>/\1/" | sed -e :a -e "N;s/\n/,require=/;ta" )
@@ -255,12 +284,25 @@ fi
 
 #INSTALL
 ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
-if [ "$ISO" = "" ]
+if [ -n "$CLONEVM" ]
 then
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus $VCPUS --cpu $CPU --network bridge=br0,mac=$MAC,model=virtio --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
-else
-	ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus $VCPUS --cpu $CPU --network bridge=br0,mac=$MAC,model=e1000 --virt-type kvm --disk $DISK --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on "$VIRT_INSTALL_OPTS"
+	CLONEVID=$(ssh -n $CLONEPM "grep '^	device /dev/drbd' /etc/drbd.d/$CLONEVM.res | sed -e 's/;//; s/^.*minor //'")
+	[ -n "$CLONEVID" ] || help "ERR-2020: cannot find VID for $CLONEVM"
+	[ $(ssh -n $CLONEPM "grep -w drbd$CLONEVID /proc/partitions" | tr -s " " | cut -d " " -f 4) -le $(ssh -n ${PMS[0]} "grep -w drbd$VID /proc/partitions" | tr -s " " | cut -d " " -f 4) ] || help "ERR-2022: -s is too small for the VM you want to clone"
+	ssh -n ${PMS[0]} drbdadm primary $VM
+	if [ "${PMS[0]}" = "$CLONEPM" ]
+	then
+		ssh -n $CLONEPM dd if=/dev/drbd$CLONEVID of=/dev/drbd$VID bs=4M oflag=sync status=progress
+	else
+		ssh -n ${PMS[0]} "ssh -n $CLONEPM dd if=/dev/drbd$CLONEVID bs=4M | dd of=/dev/drbd$VID bs=4M oflag=sync status=progress"
+	fi
+	VIRT_INSTALL_OPTS="$VIRT_INSTALL_OPTS --import"
 fi
+if [ -n "$ISO" ]
+then
+	VIRT_INSTALL_OPTS="$VIRT_INSTALL_OPTS --cdrom /var/lib/libvirt/images/iso/$ISO.iso --boot cdrom,hd,menu=on"
+fi
+ssh -tY ${PMS[0]} virt-install --name $VM --memory ${MEMORY} --vcpus $VCPUS --cpu $CPU --network bridge=br0,mac=$MAC,model=virtio --virt-type kvm --disk $DISK "$VIRT_INSTALL_OPTS"
 #peers
 if [ ${#PMS[@]} -eq 2 ]
 then

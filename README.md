@@ -1,5 +1,5 @@
 # poor-mans-cloud
-build and manage a simple but high-availability cloud with open source software and commondity hardware. PMC has the simplest configuration as it requires only one configuration file on a manager node. No running daemon is needed.
+build and manage a simple but high-availability cloud with open source software and commondity hardware. PMC has the simplest configuration, as it requires only one configuration file on its manager node, and there is no running daemons on any nodes.
 
 ## Features
 - 100% redundancy. Every disk write is instantly copied from an active node to a hot standby node.
@@ -7,6 +7,8 @@ build and manage a simple but high-availability cloud with open source software 
 - live migration. VM can be moved within a cloud of nodes without any user interruption.
 
 - two levels of disk image backup, full backup is a dd image, incremental backup is based on xdelta3.
+
+- clone
 
 ## Installation
 1. Assuming we have two nodes, pm-1 and pm-2. We also need a manager node that can run X application and also ssh to all the nodes
@@ -65,16 +67,12 @@ build and manage a simple but high-availability cloud with open source software 
 ## Comments
   In short, PMC is for poor man only. If you have a million dollar, go to VMware, or we can work together to develop a Rich Man's Cloud.
 
-  PMC doesn't store the VM information anywhere. Every command requires the manager node to go through each node to get the real time status. In my case of ~20 VM running on 5 nodes, PMC performance is pretty good. But it is certain PMC won't scale well if there are hundreds of nodes.
-
-  PMC is not complete and will never be. For example, user needs to use xdelta3 to combine a dd image with incremental copy to assemble the latest VM image. user needs to use a lot of drbd and libvirtd commands too.
-
-  However, PMC consists of just a bunch of basic Linux commands, and you can add '-v' to each command to show how the commands are run.
+  PMC doesn't store the VM information anywhere. Every command requires the manager node to go through each physical node to get the real time status. In my case of ~20 VM running on 5 physical nodes, PMC performance is pretty good. But I guess it won't scale well if there are thousands of VM running on hundreds of physical nodes.
 
 ## Status
--  2019-12, PMC was running stably with libvirt-5.8.0-2, linux-5.3.10.1-1 and drbd-utils-9.11.0-1 (AUR) on Arch Linux. VM consists of Arch Linux, and a few Windows versions.  
--  2020-11-12, libvirt-1:6.5.0-3, linux-5.9.8.arch1-1 and drbd-utils-9.11.0-1 (AUR)
 -  2021-02-06, libvirt-1:7.0.0-2, linux-5.10.13.arch1-1 and drbd-utils-9.16.0-1 (AUR)
+-  2020-11-12, libvirt-1:6.5.0-3, linux-5.9.8.arch1-1 and drbd-utils-9.11.0-1 (AUR)
+-  2019-12, PMC was running stably with libvirt-5.8.0-2, linux-5.3.10.1-1 and drbd-utils-9.11.0-1 (AUR) on Arch Linux. VM consists of Arch Linux, and a few Windows versions.  
 
 ## Copyright
 

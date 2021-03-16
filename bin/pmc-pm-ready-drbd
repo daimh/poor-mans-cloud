@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #20200616 sleep
 #20190820
-set -e
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
@@ -28,6 +27,7 @@ do
 			break ;;
 	esac
 done
+set -e
 element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
 ssh -n $PM "
 $VERBOSE

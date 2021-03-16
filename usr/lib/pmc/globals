@@ -42,14 +42,6 @@ fi
 exit 0
 EOF
 }
-function wait_for_drbd_on_pm () {
-	for ((i=0; i<100; i++))
-	do
-		ssh $2 drbdadm status $1 |grep -q "disk:UpToDate" && return 0
-		sleep 1
-	done
-	help "ERR-2400: drbd failure on host ${PMS[0]}"
-}
 function get_pm_vm_list() {
 	HELP_FUNC=$(type help | tail -n +2)
 	for PM in ${PM_LIST[@]}
