@@ -14,21 +14,21 @@ do
 #EXAMPLE:
 #	pmc-pm-ready-drbd -v PM
 		-h | --help)
-			help ;;
+			helpme ;;
 		-v | --verbose)	#optional, verbose
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
 			PM=$2
-			shift 2 || help "ERR-1001: PM name is missing"
+			shift 2 || helpme "ERR-1001: PM name is missing"
 			break ;;
 		*)
 			break ;;
 	esac
 done
 set -e
-element_in_array $PM ${PM_LIST[@]} || help "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
+element_in_array $PM ${PM_LIST[@]} || helpme "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
 ssh -n $PM "
 $VERBOSE
 set -e

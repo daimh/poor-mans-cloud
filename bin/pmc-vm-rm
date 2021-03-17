@@ -11,14 +11,14 @@ do
 #EXAMPLE:
 #	pmc-vm-rm wsus
 		-h | --help)
-			help ;;
+			helpme ;;
 		-v | --verbose)	#optional, verbose
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
 			VM=$2
-			shift 2 || help "ERR-3001: VM is missing"
+			shift 2 || helpme "ERR-3001: VM is missing"
 			break ;;
 		*)
 			break ;;
@@ -26,7 +26,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	help "ERR-3002: use -h/--help"
+	helpme "ERR-3002: use -h/--help"
 fi
 set -e
 read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS

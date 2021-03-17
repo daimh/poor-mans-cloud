@@ -13,22 +13,22 @@ do
 #EXAMPLE:
 #	pmc-vm-recreate-peer -t pm-1 win10
 		-h | --help)
-			help ;;
+			helpme ;;
 		-v | --verbose)	#optional, verbose
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		-F | --from-physical-machine) #optional
 			PRIMARY=$2
-			host $PRIMARY &> /dev/null || help "ERR-7001: $PRIMARY is not a valid physical machine"
+			host $PRIMARY &> /dev/null || helpme "ERR-7001: $PRIMARY is not a valid physical machine"
 			shift 2 ;;
 		-t | --to-physical-machine) #mandatory
 			NEW=$2
-			host $NEW &> /dev/null || help "ERR-7002: $NEW is not a valid physical machine"
+			host $NEW &> /dev/null || helpme "ERR-7002: $NEW is not a valid physical machine"
 			shift 2 ;;
 		--)
 			VM=$2
-			shift 2 || help "ERR-7003: VM is missing"
+			shift 2 || helpme "ERR-7003: VM is missing"
 			break ;;
 		*)
 			break ;;
@@ -36,7 +36,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	help "ERR-7004: use -h/--help"
+	helpme "ERR-7004: use -h/--help"
 fi
 set -e
 declare -a OLD
@@ -50,14 +50,14 @@ do
 			PRIMARY=$PM
 		elif [ "$PRIMARY" != "$PM" ]
 		then
-			help "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
+			helpme "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
 		fi
 	elif [ "$STATE" = "shut off" ]
 	then
 		OLD+=($PM)
 	fi
 done
-[ "$PRIMARY" != "" ] || help "ERR-7006: invalid $VM. If it is not running, please specify -F"
+[ "$PRIMARY" != "" ] || helpme "ERR-7006: invalid $VM. If it is not running, please specify -F"
 for OPM in ${OLD[@]}
 do
 	[ "$OPM" == "$PRIMARY" ] && continue
@@ -75,9 +75,9 @@ do
 	delete_vm_from_pm $VM $OPM
 done
 IPP=$(host $PRIMARY | cut -d " " -f 4)
-[ "$IPP" != "" ] || help "ERR-7007: cannot resolve $PRIMARY to ip address"
+[ "$IPP" != "" ] || helpme "ERR-7007: cannot resolve $PRIMARY to ip address"
 IPS=$(host $NEW | cut -d " " -f 4)
-[ "$IPS" != "" ] || help "ERR-7008: cannot resolve $NEW to ip address"
+[ "$IPS" != "" ] || helpme "ERR-7008: cannot resolve $NEW to ip address"
 ssh -T $PRIMARY << EOF
 	$VERBOSE
 	set -e

@@ -11,7 +11,7 @@ do
 #EXAMPLE:
 #	pmc-pm-ls
 		-h | --help)
-			help ;;
+			helpme ;;
 		-v | --verbose)	#optional, verbose
 			VERBOSE="set -x"
 			$VERBOSE
@@ -24,7 +24,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	help "ERR-4002: use -h/--help"
+	helpme "ERR-4002: use -h/--help"
 fi
 set -e
 get_pm_vm_list | sort -t '	' -k 3,3 | python -c "

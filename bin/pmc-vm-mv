@@ -13,14 +13,14 @@ do
 #EXAMPLE:
 #	pmc-vm-mv wsus
 		-h | --help)
-			help ;;
+			helpme ;;
 		-v | --verbose)	#optional, verbose
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
 			VM=$2
-			shift 2 || help "ERR-6001: VM is missing"
+			shift 2 || helpme "ERR-6001: VM is missing"
 			break ;;
 		*)
 			break ;;
@@ -28,7 +28,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	help "ERR-6002: use -h/--help"
+	helpme "ERR-6002: use -h/--help"
 fi
 set -e
 for PM in ${PM_LIST[@]}
@@ -42,8 +42,8 @@ do
 		SECONDARY=$PM
 	fi
 done
-[ "$PRIMARY" != "" ] || help "ERR-6003: no such an active VM $VM"
-[ "$SECONDARY" != "" ] || help "ERR-6004: This VM is not created on two PMs"
+[ "$PRIMARY" != "" ] || helpme "ERR-6003: no such an active VM $VM"
+[ "$SECONDARY" != "" ] || helpme "ERR-6004: This VM is not created on two PMs"
 if ! ssh -T $SECONDARY << EOF
 	$VERBOSE
 	set -e
@@ -51,7 +51,7 @@ if ! ssh -T $SECONDARY << EOF
 	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ]
 EOF
 then
-	help "ERR-6005: This VM's drbd is not in a normal status"
+	helpme "ERR-6005: This VM's drbd is not in a normal status"
 fi
 echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
 if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
