@@ -176,7 +176,7 @@ do
 		-V | --virt-install-options) #optional virt-install options
 			VIRT_INSTALL_OPTS="$2"
 			shift 2 ;;
-		-C | --clone-vm) #optional, vm, clone VM
+		-C | --clone-vm) #optional, vm, clone an existing VM, which should be turned off at first unless you know what you are doing
 			CLONEVM="$2"
 			shift 2 ;;
 		-F | --clone-vm-from-physical-machine) #optional, get VM's disk image from PM
