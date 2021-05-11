@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #20200616 sleep
 #20190820
 . /etc/pmc.conf

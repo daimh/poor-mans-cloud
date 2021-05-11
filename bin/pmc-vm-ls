@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #20191119 PM:DRBD:MEM
 #20190820
 . /etc/pmc.conf

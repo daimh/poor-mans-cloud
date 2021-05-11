@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #20201003 hostname check, EOF to quote
 #20200928 more packages added to pacman
 #20190926 backup

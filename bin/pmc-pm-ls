@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
+#20210511 VMs
 #20190820
 . /etc/pmc.conf
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
@@ -27,18 +28,19 @@ then
 	helpme "ERR-4002: use -h/--help"
 fi
 set -e
-get_pm_vm_list | sort -t '	' -k 3,3 | python -c "
+get_pm_vm_list | sort -t '	' -k 3,3 -k 1,1 | python -c "
 import sys
 def append_pm(lst, pm_list):
 	rpt_virt = ['running', 'shutoff']
 	rpt_drbd = ['UpToDate', 'Inconsistent']
 	if len(lst) == 0: return
-	mem_virt, cnt_virt, cnt_drbd = {}, {}, {}
+	mem_virt, cnt_virt, cnt_drbd, vm_list = {}, {}, {}, []
 	for fs in lst:
 		mem_virt[fs[1]] = mem_virt.get(fs[1], 0) + int(fs[5])
 		cnt_virt[fs[1]] = cnt_virt.get(fs[1], 0) + 1
 		if fs[3] != '':
 			cnt_drbd[fs[3]] = cnt_drbd.get(fs[3], 0) + 1
+		vm_list.append(fs[0])
 	for k in cnt_virt.keys():
 		if k not in rpt_virt: raise Exception('ERR-5001, contact developer to modify this program')
 	for k in cnt_drbd.keys():
@@ -48,10 +50,11 @@ def append_pm(lst, pm_list):
 		row.append(str(cnt_virt.get(k, 0)))
 		row.append('%d' % (mem_virt.get(k, 0)/1048576))
 	for k in rpt_drbd: row.append(str(cnt_drbd.get(k, 0)))
+	row.append(','.join(vm_list))
 	pm_list.append(row)
 
 def main():
-	print('PM', 'RunningVmCnt', 'RunningVmMem(G)', 'ShutoffVMCnt', 'ShutoffVMMem(G)', 'UpToDateDRBD', 'InconsistentDRBD', sep='\t')
+	print('PM', 'RunningVmCnt', 'RunningVmMem(G)', 'ShutoffVMCnt', 'ShutoffVMMem(G)', 'UpToDateDRBD', 'InconsistentDRBD', 'VmList', sep='\t')
 	pm, lst = None, []
 	pm_list = []
 	for ln in sys.stdin:

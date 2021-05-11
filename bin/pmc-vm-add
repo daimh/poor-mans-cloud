@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #20200617 virsh cpu-baseline
 #20200401 model=virtio/e1000
 #20190926 backup
