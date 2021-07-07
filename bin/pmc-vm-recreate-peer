@@ -3,7 +3,7 @@
 #20190926 backup
 #20190820
 . /etc/pmc.conf
-OPTS=$(getopt -o hvF:t: --long help,verbose,from-physical-machine:,to-physical-machine: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvF:t: --long help,verbose,from-physical-host:,to-physical-host: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while :
 do
@@ -18,13 +18,13 @@ do
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-F | --from-physical-machine) #optional
+		-F | --from-physical-host) #optional
 			PRIMARY=$2
-			host $PRIMARY &> /dev/null || helpme "ERR-7001: $PRIMARY is not a valid physical machine"
+			host $PRIMARY &> /dev/null || helpme "ERR-7001: $PRIMARY is not a valid physical host"
 			shift 2 ;;
-		-t | --to-physical-machine) #mandatory
+		-t | --to-physical-host) #mandatory
 			NEW=$2
-			host $NEW &> /dev/null || helpme "ERR-7002: $NEW is not a valid physical machine"
+			host $NEW &> /dev/null || helpme "ERR-7002: $NEW is not a valid physical host"
 			shift 2 ;;
 		--)
 			VM=$2

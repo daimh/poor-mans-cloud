@@ -135,7 +135,7 @@ EOF
 
 VIRT_INSTALL_OPTS=""
 ISO=""
-OPTS=$(getopt -o hvp:s:m:c:i:a:V:C:F: --long help,verbose,physical-machine:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options:,clone-vm:clone-vm-from-physical-machine: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvp:s:m:c:i:a:V:C:F: --long help,verbose,physical-host:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options:,clone-vm:clone-vm-from-physical-host: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 declare -a PMS
 while :
@@ -151,7 +151,7 @@ do
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-p | --physical-machine) #mandatory, can be specified once or twice
+		-p | --physical-host) #mandatory, can be specified once or twice
 			PMS+=($2)
 			shift 2 ;;
 		-s | --storage)	#mandatory, unit G, or 'reuse' drbd device for advanced re-installation
@@ -179,7 +179,7 @@ do
 		-C | --clone-vm) #optional, vm, clone an existing VM, which should be turned off at first unless you know what you are doing
 			CLONEVM="$2"
 			shift 2 ;;
-		-F | --clone-vm-from-physical-machine) #optional, get VM's disk image from PM
+		-F | --clone-vm-from-physical-host) #optional, get VM's disk image from PM
 			CLONEPM=$2
 			shift 2 ;;
 		--)
@@ -195,7 +195,7 @@ then
 	helpme "ERR-2002: use -h/--help"
 elif [ ${#PMS[@]} -eq 0 ]
 then
-	helpme "ERR-2003: -p/--physical-machine is mandatory"
+	helpme "ERR-2003: -p/--physical-host is mandatory"
 elif [ "$STORAGE" = "" ]
 then
 	helpme "ERR-2019: -s/--storage is wrong"
