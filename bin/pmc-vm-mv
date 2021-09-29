@@ -3,13 +3,46 @@
 #20200619
 #20190820
 . /etc/pmc.conf
+function move_vm() {
+	VM=$1
+	for PM in ${PM_LIST[@]}
+	do
+		read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue
+		if [ "$STATE" = "running" ]
+		then
+			PRIMARY=$PM
+		elif [ "$STATE" = "shut off" ]
+		then
+			SECONDARY=$PM
+		fi
+	done
+	[ "$PRIMARY" != "" ] || helpme "ERR-6003: no such an active VM $VM"
+	[ "$SECONDARY" != "" ] || helpme "ERR-6004: This VM is not created on two PMs"
+	if ! ssh -T $SECONDARY << EOF
+		$VERBOSE
+		set -e
+		drbdadm primary $VM
+		[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ]
+EOF
+	then
+		helpme "ERR-6005: This VM's drbd is not in a normal status"
+	fi
+	echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
+	if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
+	then
+		ssh -n $PRIMARY drbdadm secondary $VM
+	else
+		ssh -n $SECONDARY drbdadm secondary $VM
+	fi
+}
+
 OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while :
 do
 	case "$1" in
 #SYNOPSIS:
-#	pmc-vm-mv [OPTION]... VM
+#	pmc-vm-mv [OPTION]... VM...
 #EXAMPLE:
 #	pmc-vm-mv wsus
 		-h | --help)
@@ -19,44 +52,18 @@ do
 			$VERBOSE
 			shift ;;
 		--)
-			VM=$2
-			shift 2 || helpme "ERR-6001: VM is missing"
+			shift
 			break ;;
 		*)
 			break ;;
 	esac
 done
-if [ $# -ne 0 ]
+if [ $# -eq 0 ]
 then
-	helpme "ERR-6002: use -h/--help"
+	helpme "ERR-6001: use -h/--help"
 fi
 set -e
-for PM in ${PM_LIST[@]}
+for VM in $@
 do
-	read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue
-	if [ "$STATE" = "running" ]
-	then
-		PRIMARY=$PM
-	elif [ "$STATE" = "shut off" ]
-	then
-		SECONDARY=$PM
-	fi
+	move_vm $VM
 done
-[ "$PRIMARY" != "" ] || helpme "ERR-6003: no such an active VM $VM"
-[ "$SECONDARY" != "" ] || helpme "ERR-6004: This VM is not created on two PMs"
-if ! ssh -T $SECONDARY << EOF
-	$VERBOSE
-	set -e
-	drbdadm primary $VM
-	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ]
-EOF
-then
-	helpme "ERR-6005: This VM's drbd is not in a normal status"
-fi
-echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
-if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
-then
-	ssh -n $PRIMARY drbdadm secondary $VM
-else
-	ssh -n $SECONDARY drbdadm secondary $VM
-fi
