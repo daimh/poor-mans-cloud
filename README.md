@@ -1,19 +1,19 @@
 # poor-mans-cloud
-build and manage a simple but high-availability cloud with open source software and commondity hardware. PMC has the simplest configuration, as it requires only one configuration file on its manager node, and there is no running daemons on any nodes.
+Build and manage a simple but high-available cloud with open source software and commondity hardware. PMC has the simplest configuration, as it requires only one configuration file on its manager node, and there is no running daemons on any nodes.
 
 ## Features
-- 100% redundancy. Every disk write is instantly copied from an active node to a hot standby node.
+- 100% redundancy. Every disk write is instantly copied from the active node to its hot standby node.
 
-- live migration. VM can be moved within a cloud of nodes without any user interruption.
+- live migration. VM can be moved within a cloud of nodes without any interruption.
 
-- two levels of disk image backup, full backup is a dd image, incremental backup is based on xdelta3.
+- two levels of disk image backup. The full backup is a dd image, the incremental backup is based on xdelta3.
 
-- clone
+- VM clone
 
 ## Installation
-1. Assuming we have two nodes, pm-1 and pm-2. We also need a manager node that can run X application and also ssh to all the nodes
+1. Assuming we have two nodes, pm-1 and pm-2. We also use pm-1 as the manager node to run X application and also ssh to all the other nodes.
 
-2. go to the manager node, setup a ssh key access to all nodes
+2. go to the manager node, setup the ssh key access to all nodes
 
 3. on the manager node  
   $ cd /opt  
@@ -23,7 +23,7 @@ build and manage a simple but high-availability cloud with open source software 
   $ pmc-pm-init pm-1  
   $ pmc-pm-init pm-2  
 
-  pmc-pm-init will check drbd, pyton, libvirtd, a bridge network interface 'br0', a volume group defined in /etc/pmc.conf, and the VM backup folder. Please check with your network administrator before enabling bridge device.
+  pmc-pm-init will check drbd, pyton, libvirtd, a bridge network interface 'br0', a volume group defined in /etc/pmc.conf, and the VM backup folder. Please check with your network administrator before enabling the bridge device.
 
 ## Setup a VM
 1. go to the manager node
@@ -70,6 +70,7 @@ build and manage a simple but high-availability cloud with open source software 
   PMC doesn't store the VM information anywhere. Every command requires the manager node to go through each physical node to get the real time status. In my case of ~20 VM running on 5 physical nodes, PMC performance is pretty good. But I guess it won't scale well if there are thousands of VM running on hundreds of physical nodes.
 
 ## Status
+-  2021-09-29, libvirt-1:7.7.0-1, linux-5.14.8.arch1-1 and drbd-utils-9.16.0-1 (AUR)
 -  2021-02-06, libvirt-1:7.0.0-2, linux-5.10.13.arch1-1 and drbd-utils-9.16.0-1 (AUR)
 -  2020-11-12, libvirt-1:6.5.0-3, linux-5.9.8.arch1-1 and drbd-utils-9.11.0-1 (AUR)
 -  2019-12, PMC was running stably with libvirt-5.8.0-2, linux-5.3.10.1-1 and drbd-utils-9.11.0-1 (AUR) on Arch Linux. VM consists of Arch Linux, and a few Windows versions.  
