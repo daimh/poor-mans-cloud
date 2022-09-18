@@ -1,20 +1,23 @@
-#!/usr/bin/bash
-#20200619
-#20190926 backup
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
-OPTS=$(getopt -o hvF:t: --long help,verbose,from-physical-host:,to-physical-host: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvF:t: --long help,version,from-physical-host:,to-physical-host: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
+#HELPME_START
+#NAME
+#	pmc-vm-recreate-peer - recreate a peer for a VM
+#SYNOPSIS
 #	pmc-vm-recreate-peer [OPTION]... VM
-#EXAMPLE:
+#EXAMPLE
 #	pmc-vm-recreate-peer -t pm-1 win10
-		-h | --help)
+#DESCRIPTION
+		-h | --help) #display help and exit
 			helpme ;;
-		-v | --verbose)	#optional, verbose
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -27,18 +30,26 @@ do
 			host $NEW &> /dev/null || helpme "ERR-7002: $NEW is not a valid physical host"
 			shift 2 ;;
 		--)
+			[ $# -eq 2 ] || helpme "ERR-7001: VM is missing"
 			VM=$2
-			shift 2 || helpme "ERR-7003: VM is missing"
+			shift 2
 			break ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 if [ $# -ne 0 ]
 then
 	helpme "ERR-7004: use -h/--help"
 fi
-set -e
 declare -a OLD
 for PM in ${PM_LIST[@]}
 do
@@ -61,7 +72,7 @@ done
 for OPM in ${OLD[@]}
 do
 	[ "$OPM" == "$PRIMARY" ] && continue
-	if [ "$OPM" = "$NEW" ] 
+	if [ "$OPM" = "$NEW" ]
 	then
 		read -p "Re-creating drbd device $VM on $OPM, type \"$OPM\" to continue: " ANS
 	else
@@ -80,7 +91,7 @@ IPS=$(host $NEW | cut -d " " -f 4)
 [ "$IPS" != "" ] || helpme "ERR-7008: cannot resolve $NEW to ip address"
 ssh -T $PRIMARY << EOF
 	$VERBOSE
-	set -e
+	set -Eeuo pipefail
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
 	let PORT=7778+\$VID
 	sed -e "/\ton /I,+2 d" /etc/drbd.d/$VM.res | sed -e "s/\tdisk {/\ton $PRIMARY {\n\t\taddress $IPP:\$PORT;\n\t}\n\ton $NEW {\n\t\taddress $IPS:\$PORT;\n\t}\n\tdisk {/" > /etc/drbd.d/$VM.res.new
@@ -93,7 +104,7 @@ EOF
 STORAGE=$(ssh -n $PRIMARY lvdisplay $VG_NAME/$VM | grep "Current LE" | sed -e "s/\s\s*/ /g" | cut -d " " -f 4)
 ssh -T $NEW << EOF
 	$VERBOSE
-	set -e
+	set -Eeuo pipefail
 	echo y | lvcreate -l $STORAGE -n $VM $VG_NAME
 	drbdadm create-md $VM --force
 	drbdadm up $VM

@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
+VERBOSE=""
+trap "exit 1" TERM
 function helpme() {
-	if [ "$1" = "" ]
+	if [ $# -gt 0 ]
 	then
-		cat /proc/$$/fd/255 | sed -n '/\tcase /,/\t--)/p' | grep -e "	-\|^#" | grep -ve "--)" | sed -e "s/^#//"
+		echo -e "$1" 1>&2
 	else
-		echo "$1"
+		grep '#' /proc/$$/fd/255 | sed -n '/^#HELPME_START/,/^#HELPME_END/p' | grep -v "^#HELPME_" | sed -e "s/#//" | tr -s '\t' 1>&2 #20220612
 	fi
-	exit 1
+	kill -s TERM -- -$(cut -d ' ' -f 5 /proc/$$/stat)
 }
+HELPME_FUNC=$(type helpme | tail -n +2)
 function element_in_array() {
 	local e match="$1"
 	shift
@@ -51,7 +55,7 @@ $VERBOSE
 $HELPME_FUNC
 virsh list --all |tail -n +3| sed "/^$/d; s/shut off/shutoff/" |cut -c 7- | while read VM STAT
 do
-	[ -f /etc/drbd.d/\$VM.res ] || helpme "ERR-2401: $VM is still defined on host $PM, but no such a drbd drvice exists"
+	[ -f /etc/drbd.d/\$VM.res ] || helpme "ERR-2401: \$VM is still defined on host $PM, but no such a drbd drvice exists"
 	DRBD=\$(drbdadm status \$VM 2> /dev/null | grep "^  disk:" | cut -c 8-)
 	VID=\$(grep "device /dev/drbd" /etc/drbd.d/\$VM.res | sed -e "s/.* minor //; s/;//")
 	MEM=\$(virsh dominfo \$VM |grep "Max memory" |sed -e "s/\s\s*/ /g" |cut -d " " -f 3)

@@ -1,34 +1,47 @@
-#!/usr/bin/bash
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
-OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hv --long help,version -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
+#HELPME_START
+#NAME
+#	pmc-vm-rm - remove a VM
+#SYNOPSIS
 #	pmc-vm-rm [OPTION]... VM
-#EXAMPLE:
+#EXAMPLE
 #	pmc-vm-rm wsus
-		-h | --help)
+#DESCRIPTION
+		-h | --help) #display help and exit
 			helpme ;;
-		-v | --verbose)	#optional, verbose
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
+			[ $# -eq 2 ] || helpme "ERR-3001: VM is missing"
 			VM=$2
-			shift 2 || helpme "ERR-3001: VM is missing"
+			shift 2
 			break ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 if [ $# -ne 0 ]
 then
 	helpme "ERR-3002: use -h/--help"
 fi
-set -e
 read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS
 if [ "$ANS" != "$VM" ]
 then

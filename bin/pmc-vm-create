@@ -1,9 +1,4 @@
-#!/usr/bin/bash
-#20200617 virsh cpu-baseline
-#20200401 model=virtio/e1000
-#20190926 backup
-#20190924 minor bug fix
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
 function read_yes_no() {
 	while :
@@ -135,19 +130,25 @@ EOF
 
 VIRT_INSTALL_OPTS=""
 ISO=""
-OPTS=$(getopt -o hvp:s:m:c:i:a:V:C:F: --long help,verbose,physical-host:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options:,clone-vm:clone-vm-from-physical-host: -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvp:s:m:c:i:a:V:C:F: --long help,version,physical-host:,storage:,memory:,vcpus:,iso:,ip-address:,virt-install-options:,clone-vm:clone-vm-from-physical-host: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 declare -a PMS
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
-#	pmc-vm-add [OPTION]... VM
-#EXAMPLE:
-#	pmc-vm-add -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe" test-vm
-		-h | --help)
+#HELPME_START
+#NAME
+#	pmc-vm-create - create a VM
+#SYNOPSIS
+#	pmc-vm-create [OPTION]... VM
+#EXAMPLE
+#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe" test-vm
+#DESCRIPTION
+		-h | --help) #display help and exit
 			helpme ;;
-		-v | --verbose)	#optional, verbose
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -183,11 +184,20 @@ do
 			CLONEPM=$2
 			shift 2 ;;
 		--)
+			[ $# -eq 2 ] || helpme "ERR-2001: VM is missing"
 			VM=$2
-			shift 2 || helpme "ERR-2001: VM is missing"
+			shift 2
 			break ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 if [ $# -ne 0 ]
@@ -221,7 +231,6 @@ elif [ ${#PMS[@]} -ne 1 -a ${#PMS[@]} -ne 2 ]
 then
 	helpme "ERR-2009: up to two -p are supported for now"
 fi
-set -e
 if [ -n "$CLONEVM" ]
 then
 	if [ -z "$CLONEPM" ]
@@ -244,7 +253,7 @@ then
 fi
 for PM in ${PM_LIST[@]}
 do
-	ssh $PM virsh dominfo $VM 2> /dev/null | grep -q "State:          running" && helpme "ERR-2011: $VM is running on $PM, run \"pmc-vm-rm $VM\" or stop the VM before running 'pmc-vm-add -R'"
+	ssh $PM virsh dominfo $VM 2> /dev/null | grep -q "State:          running" && helpme "ERR-2011: $VM is running on $PM, run \"pmc-vm-rm $VM\" or stop the VM before running 'pmc-vm-create -R'"
 done
 
 if [ "$IP" = "" ]
@@ -282,7 +291,6 @@ else
 	exit 1
 fi
 
-#INSTALL
 ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
 if [ -n "$CLONEVM" ]
 then

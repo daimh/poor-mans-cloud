@@ -1,41 +1,51 @@
-#!/usr/bin/bash
-#20191124 .lock
-#20191119 -b
-#20190926 backup
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
 [ "$VM_BACKUP_DIR" != "" ] || helpme "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
-OPTS=$(getopt -o hvbp: --long help,verbose,base,physical-host:, -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hvbp: --long help,version,base,physical-host:, -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
+#HELPME_START
+#NAME
+#	pmc-vm-backup - backup a VM
+#SYNOPSIS
 #	pmc-vm-backup [OPTION]... VM
-#EXAMPLE:
+#EXAMPLE
 #	pmc-vm-backup wsus
+#DESCRIPTION
+		-h | --help) #display help and exit
+			helpme ;;
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v | --verbose)	#verbose output
+			VERBOSE="set -x"
+			$VERBOSE
+			shift ;;
 		-b | --base) #create base image
 			BASE=Y
 			shift ;;
 		-p | --physical-host) #specify the physical host instead of finding out the secondary DRBD host.
 			HOST=$2
 			shift 2 ;;
-		-h | --help)
-			helpme ;;
-		-v | --verbose)	#optional, verbose
-			VERBOSE="set -x"
-			$VERBOSE
-			shift ;;
 		--)
+			[ $# -eq 2 ] || helpme "ERR-8001: VM is missing"
 			VM=$2
-			shift 2 || helpme "ERR-8001: VM is missing"
+			shift 2
 			break ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 [ $# -eq 0 ] || helpme "ERR-8002: use -h/--help"
-set -e
 if [ -z "$HOST" ]
 then
 	for PM in ${PM_LIST[@]}
@@ -54,12 +64,11 @@ else
 	ssh -n $HOST "virsh dominfo $VM &>/dev/null" || helpme "ERR-8007: VM $VM is the physical host you specified with '-p'"
 fi
 [ ! -z "$HOST" ] || helpme "ERR-8004: VM $VM is not running, add '-p' to specify the physical host that runs the backup"
-HELPME_FUNC=$(type helpme | tail -n +2)
 TS=$(date +%+4Y-%m-%d-%H-%M-%S)
 ssh -T $HOST << EOF
 	$VERBOSE
 	[[ $- == *x* ]] && set -x
-	set -e
+	set -Eeuo pipefail
 	$HELPME_FUNC
 	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ] || helpme "ERR-8005: This VM's drbd is not in a normal status"
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")

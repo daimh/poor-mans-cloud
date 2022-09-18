@@ -1,19 +1,23 @@
-#!/usr/bin/bash
-#20191119 PM:DRBD:MEM
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
-OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hv --long help,version -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
-#	pmc-vm-ls [OPTION]... 
-#EXAMPLE:
+#HELPME_START
+#NAME
+#	pmc-vm-ls - list all VMs
+#SYNOPSIS
+#	pmc-vm-ls [OPTION]...
+#EXAMPLE
 #	pmc-vm-ls
-		-h | --help)
+#DESCRIPTION
+		-h | --help)	#display help and exit
 			helpme ;;
-		-v | --verbose)	#optional, verbose
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -21,13 +25,20 @@ do
 			shift ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 if [ $# -ne 0 ]
 then
 	helpme "ERR-4002: use -h/--help"
 fi
-set -e
 get_pm_vm_list | sort -t '	' -k 1,1 | python -c "
 import sys
 def print_vm(lst):

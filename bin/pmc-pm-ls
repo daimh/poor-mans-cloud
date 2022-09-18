@@ -1,19 +1,23 @@
-#!/usr/bin/bash
-#20210511 VMs
-#20190820
+#!/usr/bin/env bash
 . /etc/pmc.conf
-OPTS=$(getopt -o hv --long help,verbose -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hv --long help,version -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
-while :
+while [ $# -gt 0 ]
 do
 	case "$1" in
-#SYNOPSIS:
-#	pmc-pm-ls [OPTION]... 
-#EXAMPLE:
+#HELPME_START
+#NAME
+#	pmc-pm-ls - list all PMs
+#SYNOPSIS
+#	pmc-pm-ls [OPTION]...
+#EXAMPLE
 #	pmc-pm-ls
-		-h | --help)
+#DESCRIPTION
+		-h | --help) #display help and exit
 			helpme ;;
-		-v | --verbose)	#optional, verbose
+		--version)	#display version and exit
+			helpme "20220918" ;;
+		-v) #verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -21,13 +25,20 @@ do
 			shift ;;
 		*)
 			break ;;
+#AUTHOR
+#	Manhong Dai, manhongdai@gmail.com
+#COPYRIGHT
+#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#	This is free software: you are free to change and redistribute it.
+#	There is NO WARRANTY, to the extent permitted by law.
+#HELPME_END
 	esac
 done
 if [ $# -ne 0 ]
 then
 	helpme "ERR-4002: use -h/--help"
 fi
-set -e
 get_pm_vm_list | sort -t '	' -k 3,3 -k 1,1 | python -c "
 import sys
 def append_pm(lst, pm_list):
@@ -46,7 +57,7 @@ def append_pm(lst, pm_list):
 	for k in cnt_drbd.keys():
 		if k not in rpt_drbd: raise Exception('ERR-5002, contact developer to modify this program')
 	row = [lst[0][2]]
-	for k in rpt_virt: 
+	for k in rpt_virt:
 		row.append(str(cnt_virt.get(k, 0)))
 		row.append('%d' % (mem_virt.get(k, 0)/1048576))
 	for k in rpt_drbd: row.append(str(cnt_drbd.get(k, 0)))
