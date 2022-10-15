@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 . /etc/pmc.conf
 [ "$VM_BACKUP_DIR" != "" ] || helpme "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
+HOST=""
+BASE=N
 OPTS=$(getopt -o hvbp: --long help,version,base,physical-host:, -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while [ $# -gt 0 ]
@@ -28,13 +30,6 @@ do
 		-p | --physical-host) #specify the physical host instead of finding out the secondary DRBD host.
 			HOST=$2
 			shift 2 ;;
-		--)
-			[ $# -eq 2 ] || helpme "ERR-8001: VM is missing"
-			VM=$2
-			shift 2
-			break ;;
-		*)
-			break ;;
 #AUTHOR
 #	Manhong Dai, manhongdai@gmail.com
 #COPYRIGHT
@@ -43,6 +38,13 @@ do
 #	This is free software: you are free to change and redistribute it.
 #	There is NO WARRANTY, to the extent permitted by law.
 #HELPME_END
+		--)
+			[ $# -eq 2 ] || helpme "ERR-8001: VM is missing"
+			VM=$2
+			shift 2
+			break ;;
+		*)
+			break ;;
 	esac
 done
 [ $# -eq 0 ] || helpme "ERR-8002: use -h/--help"
@@ -75,9 +77,10 @@ ssh -T $HOST << EOF
 	cd "$VM_BACKUP_DIR"
 	mkdir -p $VM
 	cd $VM
+	ROLE_PRIMARY=""
 	if drbdadm status $VM | grep -q "^$VM role:Primary"
 	then
-		ROLE_PRIMARY=YES
+		ROLE_PRIMARY=Y
 	fi
 	[ ! -z "\$ROLE_PRIMARY" ] || drbdadm primary $VM
 	if [ "$BASE" = "Y" ]
