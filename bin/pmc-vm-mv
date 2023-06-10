@@ -13,8 +13,8 @@ function move_vm() {
 			SECONDARY=$PM
 		fi
 	done
-	[ "$PRIMARY" != "" ] || helpme "ERR-6003: no such an active VM $VM"
-	[ "$SECONDARY" != "" ] || helpme "ERR-6004: This VM is not created on two PMs"
+	[[ -v PRIMARY ]] || helpme "ERR-6003: no such an active VM $VM"
+	[[ -v SECONDARY ]] || helpme "ERR-6004: This VM is not created on two PMs"
 	if ! ssh -T $SECONDARY << EOF
 		$VERBOSE
 		set -Eeuo pipefail
