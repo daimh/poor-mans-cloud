@@ -31,7 +31,7 @@ then
 	echo "ERR-2501: $VG_NAME/$VM already exists in host $PM, use 'pmc-vm-rm'"
 	exit 1
 fi
-echo y | lvcreate -L ${STORAGE}G -n $VM $VG_NAME
+lvcreate -y -L ${STORAGE}G -n $VM $VG_NAME
 IP0=\$(host ${PMS[0]} | cut -d " " -f 4)
 if [ ${#PMS[@]} -gt 1 ]
 then
@@ -142,12 +142,12 @@ do
 #SYNOPSIS
 #	pmc-vm-create [OPTION]... VM
 #EXAMPLE
-#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe" test-vm
+#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe --osinfo archlinux" test-vm
 #DESCRIPTION
 		-h | --help) #display help and exit
 			helpme ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			helpme "20241025" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
@@ -224,14 +224,14 @@ then
 elif [ "$VCPUS" -le 0 ]
 then
 	helpme "ERR-2006: -c/--vcpus is wrong"
-elif ! echo $VM | egrep -q '^[a-z0-9-]+$'
+elif ! echo $VM | grep -Eq '^[a-z0-9-]+$'
 then
 	helpme "ERR-2008: $VM should be [a-z0-9-]"
 elif [ ${#PMS[@]} -ne 1 -a ${#PMS[@]} -ne 2 ]
 then
 	helpme "ERR-2009: up to two -p are supported for now"
 fi
-if [ -n "$CLONEVM" ]
+if [[ -v CLONEVM ]]
 then
 	if [ -z "$CLONEPM" ]
 	then
@@ -256,7 +256,7 @@ do
 	ssh $PM virsh dominfo $VM 2> /dev/null | grep -q "State:          running" && helpme "ERR-2011: $VM is running on $PM, run \"pmc-vm-rm $VM\" or stop the VM before running 'pmc-vm-create -R'"
 done
 
-if [ "$IP" = "" ]
+if [[ ! -v IP ]]
 then
 	IP=$(host $VM) || helpme "ERR-2018: $VM not in DNS"
 	[ "$IP" != "" ] || helpme "ERR-2012: $VM not in DNS"
@@ -292,7 +292,7 @@ else
 fi
 
 ssh -t ${PMS[0]} "virsh undefine $VM" &> /dev/null || echo -n
-if [ -n "$CLONEVM" ]
+if [[ -v CLONEVM ]]
 then
 	CLONEVID=$(ssh -n $CLONEPM "grep '^	device /dev/drbd' /etc/drbd.d/$CLONEVM.res | sed -e 's/;//; s/^.*minor //'")
 	[ -n "$CLONEVID" ] || helpme "ERR-2020: cannot find VID for $CLONEVM"
