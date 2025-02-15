@@ -142,7 +142,7 @@ do
 #SYNOPSIS
 #	pmc-vm-create [OPTION]... VM
 #EXAMPLE
-#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--nographics --pxe --osinfo archlinux" test-vm
+#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--machine pc --nographics --pxe --osinfo archlinux" test-vm
 #DESCRIPTION
 		-h | --help) #display help and exit
 			helpme ;;

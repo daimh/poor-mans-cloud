@@ -82,5 +82,6 @@ def main():
 	for row in sorted(pm_list):
 		print('\t'.join(row))
 
-if __name__ == '__main__': main()
-"
+if __name__ == '__main__':
+	main()
+" | column -t

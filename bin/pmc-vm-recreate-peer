@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 . /etc/pmc.conf
+PRIMARY=""
 OPTS=$(getopt -o hvF:t: --long help,version,from-physical-host:,to-physical-host: -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while [ $# -gt 0 ]

@@ -64,5 +64,6 @@ def main():
 			vm, lst = fs[0], []
 		lst.append(fs)
 	print_vm(lst)
-if __name__ == '__main__': main()
-"
+if __name__ == '__main__':
+	main()
+" | column -t
