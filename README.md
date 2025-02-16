@@ -11,14 +11,14 @@ Build and manage a simple but high-available cloud with open source software and
 - VM clone
 
 ## Installation
-1. Assuming we have two nodes, pm-1 and pm-2. We also use pm-1 as the manager node to run X application and also ssh to all the other nodes.
+1. Assuming we have two nodes, pm-1 and pm-2. We also use pm-1 as the manager node
 
-2. go to the manager node, setup the ssh key access to all nodes
+2. go to the manager node, setup the root ssh key access to pm-2
 
 3. on the manager node  
   $ cd /opt  
   $ git clone https://github.com/daimh/poor-mans-cloud.git  
-  $ ln -s /opt/poor-mans-cloud/etc/pmc.conf /etc/pmc.conf  
+  $ ln -s /opt/poor-mans-cloud/etc/pmc.conf /etc/pmc.conf
   $ export PATH=$PATH:/opt/poor-mans-cloud/bin  
   $ pmc-pm-init pm-1  
   $ pmc-pm-init pm-2  
@@ -58,8 +58,8 @@ Build and manage a simple but high-available cloud with open source software and
   $ pmc-pm-ready-drbd pm-2  
 
 3. check all drbd status  
-  $ ssh pm-1 cat /proc/drbd  
-  $ ssh pm-2 cat /proc/drbd  
+  $ ssh pm-1 drbdadm status  
+  $ ssh pm-2 drbdadm status  
 
 4. go to the node you want to start 'test-vm' and run  
   $ virsh start test-vm
@@ -70,6 +70,7 @@ Build and manage a simple but high-available cloud with open source software and
   PMC doesn't store the VM information anywhere. Every command requires the manager node to go through each physical node to get the real time status. In my case of ~20 VM running on 5 physical nodes, PMC performance is pretty good. But I guess it won't scale well if there are thousands of VM running on hundreds of physical nodes.
 
 ## Status
+-  2025-02-16, libvirt-1:11.0.0-2, linux-6.12.10.arch1-1 and drbd-utils-9.21.1-2 (AUR)
 -  2021-09-29, libvirt-1:7.7.0-1, linux-5.14.8.arch1-1 and drbd-utils-9.16.0-1 (AUR)
 -  2021-02-06, libvirt-1:7.0.0-2, linux-5.10.13.arch1-1 and drbd-utils-9.16.0-1 (AUR)
 -  2020-11-12, libvirt-1:6.5.0-3, linux-5.9.8.arch1-1 and drbd-utils-9.11.0-1 (AUR)
@@ -86,6 +87,10 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 ## Acknowledgment
+
+Andy Lin, MNI, UMICH
+
+Julie Gales, administrator of MNI, UMICH
 
 Ruth Freedman, MPH, former administrator of MNI, UMICH
 
