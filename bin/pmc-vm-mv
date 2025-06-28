@@ -13,8 +13,8 @@ function move_vm() {
 			SECONDARY=$PM
 		fi
 	done
-	[[ -v PRIMARY ]] || helpme "ERR-6003: no such an active VM $VM"
-	[[ -v SECONDARY ]] || helpme "ERR-6004: This VM is not created on two PMs"
+	[[ -v PRIMARY ]] || die "ERR-6003: no such an active VM $VM"
+	[[ -v SECONDARY ]] || die "ERR-6004: This VM is not created on two PMs"
 	if ! ssh -T $SECONDARY << EOF
 		$VERBOSE
 		set -Eeuo pipefail
@@ -22,7 +22,7 @@ function move_vm() {
 		[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ]
 EOF
 	then
-		helpme "ERR-6005: This VM's drbd is not in a normal status"
+		die "ERR-6005: This VM's drbd is not in a normal status"
 	fi
 	echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
 	if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
@@ -47,9 +47,9 @@ do
 #	pmc-vm-mv wsus
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme 20220918 ;;
+			die 20220918 ;;
 		-v)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
@@ -71,7 +71,7 @@ do
 done
 if [ $# -eq 0 ]
 then
-	helpme "ERR-6001: use -h/--help"
+	die "ERR-6001: use -h/--help"
 fi
 for VM in $@
 do

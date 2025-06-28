@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 . /etc/pmc.conf
-[ "$VM_BACKUP_DIR" != "" ] || helpme "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
+[ "$VM_BACKUP_DIR" != "" ] || die "ERR-8000: VM_BACKUP_DIR is not defined in /etc/pmc.conf"
 HOST=""
-BASE=N
+BaseOpt=N
 OPTS=$(getopt -o hvbp: --long help,version,base,physical-host:, -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while [ $# -gt 0 ]
@@ -17,15 +17,15 @@ do
 #	pmc-vm-backup wsus
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20250628" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		-b | --base) #create base image
-			BASE=Y
+			BaseOpt=Y
 			shift ;;
 		-p | --physical-host) #specify the physical host instead of finding out the secondary DRBD host.
 			HOST=$2
@@ -39,7 +39,7 @@ do
 #	There is NO WARRANTY, to the extent permitted by law.
 #HELPME_END
 		--)
-			[ $# -eq 2 ] || helpme "ERR-8001: VM is missing"
+			[ $# -eq 2 ] || die "ERR-8001: VM is missing"
 			VM=$2
 			shift 2
 			break ;;
@@ -47,7 +47,7 @@ do
 			break ;;
 	esac
 done
-[ $# -eq 0 ] || helpme "ERR-8002: use -h/--help"
+[ $# -eq 0 ] || die "ERR-8002: use -h/--help"
 if [ -z "$HOST" ]
 then
 	for PM in ${PM_LIST[@]}
@@ -58,21 +58,21 @@ then
 			PRIMARY=$PM
 		elif [ "$STATE" = "shut off" ]
 		then
-			[ -z "$HOST" ] || helpme "ERR-8003: VM $VM is not running, add '-p' to specify the physical host that runs the backup"
+			[ -z "$HOST" ] || die "ERR-8003: VM $VM is not running, add '-p' to specify the physical host that runs the backup"
 			HOST=$PM
 		fi
 	done
 else
-	ssh -n $HOST "virsh dominfo $VM &>/dev/null" || helpme "ERR-8007: VM $VM is the physical host you specified with '-p'"
+	ssh -n $HOST "virsh dominfo $VM &>/dev/null" || die "ERR-8007: VM $VM is the physical host you specified with '-p'"
 fi
-[ ! -z "$HOST" ] || helpme "ERR-8004: VM $VM is not running, add '-p' to specify the physical host that runs the backup"
+[ ! -z "$HOST" ] || die "ERR-8004: VM $VM is not running, add '-p' to specify the physical host that runs the backup"
 TS=$(date +%+4Y-%m-%d-%H-%M-%S)
 ssh -T $HOST << EOF
 	$VERBOSE
 	[[ $- == *x* ]] && set -x
 	set -Eeuo pipefail
 	$HELPME_FUNC
-	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ] || helpme "ERR-8005: This VM's drbd is not in a normal status"
+	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ] || die "ERR-8005: This VM's drbd is not in a normal status"
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
 	cd "$VM_BACKUP_DIR"
 	mkdir -p $VM
@@ -83,14 +83,14 @@ ssh -T $HOST << EOF
 		ROLE_PRIMARY=Y
 	fi
 	[ ! -z "\$ROLE_PRIMARY" ] || drbdadm primary $VM
-	if [ "$BASE" = "Y" ]
+	if [ "$BaseOpt" = "Y" ]
 	then
 		flock .lock dd if=/dev/drbd\$VID of=$TS.base.tmp bs=16M status=progress
 		mv $TS.base.tmp $TS.base
 	else
-		BASE="\$( ls -t *.base 2> /dev/null | head -n 1 )"
-		[ "\$BASE" != "" ] || helpme "ERR-8006: no base image exists under $HOST:$VM_BACKUP_DIR/$VM/"
-		flock -s .lock xdelta3 -e -S djw -s "\$BASE" /dev/drbd\$VID $TS.xdelta3.tmp
+		BaseImg="\$( ls -t *.base 2> /dev/null | head -n 1 )" || :
+		[ "\$BaseImg" != "" ] || die "ERR-8006: no base image exists under $HOST:$VM_BACKUP_DIR/$VM/, use '-b'"
+		flock -s .lock xdelta3 -e -S djw -s "\$BaseImg" /dev/drbd\$VID $TS.xdelta3.tmp
 		mv $TS.xdelta3.tmp $TS.xdelta3
 	fi
 	[ ! -z "\$ROLE_PRIMARY" ] || drbdadm secondary $VM

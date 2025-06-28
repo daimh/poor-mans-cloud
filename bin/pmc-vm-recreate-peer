@@ -15,23 +15,23 @@ do
 #	pmc-vm-recreate-peer -t pm-1 win10
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20220918" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		-F | --from-physical-host) #optional
 			PRIMARY=$2
-			host $PRIMARY &> /dev/null || helpme "ERR-7001: $PRIMARY is not a valid physical host"
+			host $PRIMARY &> /dev/null || die "ERR-7001: $PRIMARY is not a valid physical host"
 			shift 2 ;;
 		-t | --to-physical-host) #mandatory
 			NEW=$2
-			host $NEW &> /dev/null || helpme "ERR-7002: $NEW is not a valid physical host"
+			host $NEW &> /dev/null || die "ERR-7002: $NEW is not a valid physical host"
 			shift 2 ;;
 		--)
-			[ $# -eq 2 ] || helpme "ERR-7001: VM is missing"
+			[ $# -eq 2 ] || die "ERR-7001: VM is missing"
 			VM=$2
 			shift 2
 			break ;;
@@ -49,7 +49,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	helpme "ERR-7004: use -h/--help"
+	die "ERR-7004: use -h/--help"
 fi
 declare -a OLD
 for PM in ${PM_LIST[@]}
@@ -62,14 +62,14 @@ do
 			PRIMARY=$PM
 		elif [ "$PRIMARY" != "$PM" ]
 		then
-			helpme "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
+			die "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
 		fi
 	elif [ "$STATE" = "shut off" ]
 	then
 		OLD+=($PM)
 	fi
 done
-[ "$PRIMARY" != "" ] || helpme "ERR-7006: invalid $VM. If it is not running, please specify -F"
+[ "$PRIMARY" != "" ] || die "ERR-7006: invalid $VM. If it is not running, please specify -F"
 for OPM in ${OLD[@]}
 do
 	[ "$OPM" == "$PRIMARY" ] && continue
@@ -87,9 +87,9 @@ do
 	delete_vm_from_pm $VM $OPM
 done
 IPP=$(host $PRIMARY | cut -d " " -f 4)
-[ "$IPP" != "" ] || helpme "ERR-7007: cannot resolve $PRIMARY to ip address"
+[ "$IPP" != "" ] || die "ERR-7007: cannot resolve $PRIMARY to ip address"
 IPS=$(host $NEW | cut -d " " -f 4)
-[ "$IPS" != "" ] || helpme "ERR-7008: cannot resolve $NEW to ip address"
+[ "$IPS" != "" ] || die "ERR-7008: cannot resolve $NEW to ip address"
 ssh -T $PRIMARY << EOF
 	$VERBOSE
 	set -Eeuo pipefail

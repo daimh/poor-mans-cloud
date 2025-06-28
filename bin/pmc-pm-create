@@ -14,15 +14,15 @@ do
 #	pmc-pm-create -v PM
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20220918" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
-			[ $# -eq 2 ] || helpme "ERR-1001: PM is missing"
+			[ $# -eq 2 ] || die "ERR-1001: PM is missing"
 			PM=$2
 			shift 2
 			break ;;
@@ -38,7 +38,7 @@ do
 #HELPME_END
 	esac
 done
-element_in_array $PM ${PM_LIST[@]} || helpme "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
+element_in_array $PM ${PM_LIST[@]} || die "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
 ssh -t $PM "
 $VERBOSE
 set -Eeuo pipefail
@@ -67,7 +67,7 @@ ip a s br0
 echo '##checking vg'
 vgdisplay $VG_NAME
 echo '## VM_BACKUP_DIR'
-[ -d \"$VM_BACKUP_DIR\" ] || helpme \"ERR-1003: $VM_BACKUP_DIR does not exist\"
+[ -d \"$VM_BACKUP_DIR\" ] || die \"ERR-1003: $VM_BACKUP_DIR does not exist\"
 echo '##PASS'
 "
 for N in "${PM_LIST[@]}"

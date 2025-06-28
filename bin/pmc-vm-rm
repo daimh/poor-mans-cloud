@@ -14,15 +14,15 @@ do
 #	pmc-vm-rm wsus
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20220918" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
-			[ $# -eq 2 ] || helpme "ERR-3001: VM is missing"
+			[ $# -eq 2 ] || die "ERR-3001: VM is missing"
 			VM=$2
 			shift 2
 			break ;;
@@ -40,7 +40,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	helpme "ERR-3002: use -h/--help"
+	die "ERR-3002: use -h/--help"
 fi
 read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS
 if [ "$ANS" != "$VM" ]

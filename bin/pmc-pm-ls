@@ -14,9 +14,9 @@ do
 #	pmc-pm-ls
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20220918" ;;
 		-v) #verbose output
 			VERBOSE="set -x"
 			$VERBOSE
@@ -37,7 +37,7 @@ do
 done
 if [ $# -ne 0 ]
 then
-	helpme "ERR-4002: use -h/--help"
+	die "ERR-4002: use -h/--help"
 fi
 get_pm_vm_list | sort -t '	' -k 3,3 -k 1,1 | python -c "
 import sys

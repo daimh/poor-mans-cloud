@@ -14,15 +14,15 @@ do
 #	pmc-pm-ready-drbd -v PM
 #DESCRIPTION
 		-h | --help) #display help and exit
-			helpme ;;
+			die ;;
 		--version)	#display version and exit
-			helpme "20220918" ;;
+			die "20220918" ;;
 		-v | --verbose)	#verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
 		--)
-			[ $# -eq 2 ] || helpme "ERR-1001: PM is missing"
+			[ $# -eq 2 ] || die "ERR-1001: PM is missing"
 			PM=$2
 			shift 2
 			break ;;
@@ -38,7 +38,7 @@ do
 #HELPME_END
 	esac
 done
-element_in_array $PM ${PM_LIST[@]} || helpme "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
+element_in_array $PM ${PM_LIST[@]} || die "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
 ssh -n $PM "
 $VERBOSE
 set -Eeuo pipefail
