@@ -136,51 +136,51 @@ declare -a PMS
 while [ $# -gt 0 ]
 do
 	case "$1" in
-#HELPME_START
-#NAME
-#	pmc-vm-create - create a VM
-#SYNOPSIS
-#	pmc-vm-create [OPTION]... VM
-#EXAMPLE
-#	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--machine pc --nographics --pxe --osinfo archlinux" test-vm
-#DESCRIPTION
-		-h | --help) #display help and exit
+#@ HELP_START
+#@ NAME
+#@ 	pmc-vm-create - create a VM
+#@ SYNOPSIS
+#@ 	pmc-vm-create [OPTION]... VM
+#@ EXAMPLE
+#@ 	pmc-vm-create -p pm-1 -p pm-2 -s 50 -m 4 -c 8 -V "--machine pc --nographics --pxe --osinfo archlinux" test-vm
+#@ DESCRIPTION
+		-h | --help) #@ display help and exit
 			die ;;
-		--version)	#display version and exit
-			die "20241025" ;;
-		-v | --verbose)	#verbose output
+		--version)	#@ display version and exit
+			die 20250731 ;;
+		-v | --verbose)	#@ verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-p | --physical-host) #mandatory, can be specified once or twice
+		-p | --physical-host) #@ mandatory, can be specified once or twice
 			PMS+=($2)
 			shift 2 ;;
-		-s | --storage)	#mandatory, unit G, or 'reuse' drbd device for advanced re-installation
+		-s | --storage)	#@ mandatory, unit G, or 'reuse' drbd device for advanced re-installation
 			STORAGE=$2
 			if [ "$STORAGE" != "reuse" ]
 			then
 				let STORAGE=$2
 			fi
 			shift 2 ;;
-		-m | --memory) #mandatory, unit G
+		-m | --memory) #@ mandatory, unit G
 			let MEMORY=1024*$2
 			shift 2 ;;
-		-c | --vcpus) #mandatory, Number of virtual cpus
+		-c | --vcpus) #@ mandatory, Number of virtual cpus
 			let VCPUS=$2
 			shift 2 ;;
-		-i | --iso) #optional, an installation iso file under usr/lib/pmc/iso/
+		-i | --iso) #@ optional, an installation iso file under usr/lib/pmc/iso/
 			ISO=$2
 			shift 2 ;;
-		-a | --ip-address) #optional, VM's IPV4 address if the hostname cannot be solved at DNS server
+		-a | --ip-address) #@ optional, VM's IPV4 address if the hostname cannot be solved at DNS server
 			IP=$2
 			shift 2 ;;
-		-V | --virt-install-options) #optional virt-install options
+		-V | --virt-install-options) #@ optional virt-install options
 			VIRT_INSTALL_OPTS="$2"
 			shift 2 ;;
-		-C | --clone-vm) #optional, vm, clone an existing VM, which should be turned off at first unless you know what you are doing
+		-C | --clone-vm) #@ optional, vm, clone an existing VM, which should be turned off at first unless you know what you are doing
 			CLONEVM="$2"
 			shift 2 ;;
-		-F | --clone-vm-from-physical-host) #optional, get VM's disk image from PM
+		-F | --clone-vm-from-physical-host) #@ optional, get VM's disk image from PM
 			CLONEPM=$2
 			shift 2 ;;
 		--)
@@ -190,14 +190,14 @@ do
 			break ;;
 		*)
 			break ;;
-#AUTHOR
-#	Manhong Dai, manhongdai@gmail.com
-#COPYRIGHT
-#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#	This is free software: you are free to change and redistribute it.
-#	There is NO WARRANTY, to the extent permitted by law.
-#HELPME_END
+#@ AUTHOR
+#@ 	Manhong Dai, manhongdai@gmail.com
+#@ COPYRIGHT
+#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#@ 	This is free software: you are free to change and redistribute it.
+#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@ HELP_END
 	esac
 done
 if [ $# -ne 0 ]

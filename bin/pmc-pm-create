@@ -5,19 +5,19 @@ eval set -- "$OPTS"
 while :
 do
 	case "$1" in
-#HELPME_START
-#NAME
-#	pmc-pm-create - create a PM
-#SYNOPSIS
-#	pmc-pm-create [OPTION]... PM
-#EXAMPLE
-#	pmc-pm-create -v PM
-#DESCRIPTION
-		-h | --help) #display help and exit
+#@ HELP_START
+#@ NAME
+#@ 	pmc-pm-create - create a PM
+#@ SYNOPSIS
+#@ 	pmc-pm-create [OPTION]... PM
+#@ EXAMPLE
+#@ 	pmc-pm-create -v PM
+#@ DESCRIPTION
+		-h | --help) #@ display help and exit
 			die ;;
-		--version)	#display version and exit
-			die "20220918" ;;
-		-v | --verbose)	#verbose output
+		--version)	#@ display version and exit
+			die 20250731 ;;
+		-v | --verbose)	#@ verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -28,21 +28,21 @@ do
 			break ;;
 		*)
 			break ;;
-#AUTHOR
-#	Manhong Dai, manhongdai@gmail.com
-#COPYRIGHT
-#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#	This is free software: you are free to change and redistribute it.
-#	There is NO WARRANTY, to the extent permitted by law.
-#HELPME_END
+#@ AUTHOR
+#@ 	Manhong Dai, manhongdai@gmail.com
+#@ COPYRIGHT
+#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#@ 	This is free software: you are free to change and redistribute it.
+#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@ HELP_END
 	esac
 done
 element_in_array $PM ${PM_LIST[@]} || die "ERR-1002: add $PM to PM_LIST in /etc/pmc.conf first, please"
 ssh -t $PM "
 $VERBOSE
 set -Eeuo pipefail
-$HELPME_FUNC
+$DIE_FUNC
 echo '##checking hostname'
 [ \"\$(hostname)\" = \"$PM\" ]
 if [ -f /etc/arch-release ]

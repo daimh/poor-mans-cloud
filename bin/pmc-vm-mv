@@ -38,19 +38,19 @@ eval set -- "$OPTS"
 while [ $# -gt 0 ]
 do
 	case "$1" in
-#HELPME_START
-#NAME
-#	pmc-vm-mv - move VM to another PM
-#SYNOPSIS
-#	pmc-vm-mv [OPTION]... VM...
-#EXAMPLE
-#	pmc-vm-mv wsus
-#DESCRIPTION
-		-h | --help) #display help and exit
+#@ HELP_START
+#@ NAME
+#@ 	pmc-vm-mv - move VM to another PM
+#@ SYNOPSIS
+#@ 	pmc-vm-mv [OPTION]... VM...
+#@ EXAMPLE
+#@ 	pmc-vm-mv wsus
+#@ DESCRIPTION
+		-h | --help) #@ display help and exit
 			die ;;
-		--version)	#display version and exit
-			die 20220918 ;;
-		-v)	#verbose output
+		--version)	#@ display version and exit
+			die 20250731 ;;
+		-v)	#@ verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -59,14 +59,14 @@ do
 			break ;;
 		*)
 			break ;;
-#AUTHOR
-#	Manhong Dai, manhongdai@gmail.com
-#COPYRIGHT
-#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#	This is free software: you are free to change and redistribute it.
-#	There is NO WARRANTY, to the extent permitted by law.
-#HELPME_END
+#@ AUTHOR
+#@ 	Manhong Dai, manhongdai@gmail.com
+#@ COPYRIGHT
+#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#@ 	This is free software: you are free to change and redistribute it.
+#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@ HELP_END
 	esac
 done
 if [ $# -eq 0 ]

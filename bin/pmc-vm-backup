@@ -8,36 +8,36 @@ eval set -- "$OPTS"
 while [ $# -gt 0 ]
 do
 	case "$1" in
-#HELPME_START
-#NAME
-#	pmc-vm-backup - backup a VM
-#SYNOPSIS
-#	pmc-vm-backup [OPTION]... VM
-#EXAMPLE
-#	pmc-vm-backup wsus
-#DESCRIPTION
-		-h | --help) #display help and exit
+#@ HELP_START
+#@ NAME
+#@ 	pmc-vm-backup - backup a VM
+#@ SYNOPSIS
+#@ 	pmc-vm-backup [OPTION]... VM
+#@ EXAMPLE
+#@ 	pmc-vm-backup wsus
+#@ DESCRIPTION
+		-h | --help) #@ display help and exit
 			die ;;
-		--version)	#display version and exit
-			die "20250628" ;;
-		-v | --verbose)	#verbose output
+		--version)	#@ display version and exit
+			die 20250731 ;;
+		-v | --verbose)	#@ verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-b | --base) #create base image
+		-b | --base) #@ create base image
 			BaseOpt=Y
 			shift ;;
-		-p | --physical-host) #specify the physical host instead of finding out the secondary DRBD host.
+		-p | --physical-host) #@ specify the physical host instead of finding out the secondary DRBD host.
 			HOST=$2
 			shift 2 ;;
-#AUTHOR
-#	Manhong Dai, manhongdai@gmail.com
-#COPYRIGHT
-#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#	This is free software: you are free to change and redistribute it.
-#	There is NO WARRANTY, to the extent permitted by law.
-#HELPME_END
+#@ AUTHOR
+#@ 	Manhong Dai, manhongdai@gmail.com
+#@ COPYRIGHT
+#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#@ 	This is free software: you are free to change and redistribute it.
+#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@ HELP_END
 		--)
 			[ $# -eq 2 ] || die "ERR-8001: VM is missing"
 			VM=$2
@@ -71,7 +71,7 @@ ssh -T $HOST << EOF
 	$VERBOSE
 	[[ $- == *x* ]] && set -x
 	set -Eeuo pipefail
-	$HELPME_FUNC
+	$DIE_FUNC
 	[ "\$(drbdadm status $VM | grep disk:UpToDate | wc -l)" = "2" ] || die "ERR-8005: This VM's drbd is not in a normal status"
 	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res | sed -e "s/;//; s/^.*minor //")
 	cd "$VM_BACKUP_DIR"

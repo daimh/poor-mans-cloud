@@ -5,19 +5,19 @@ eval set -- "$OPTS"
 while [ $# -gt 0 ]
 do
 	case "$1" in
-#HELPME_START
-#NAME
-#	pmc-pm-ready-drbd - ready a PM to start VMs
-#SYNOPSIS
-#	pmc-pm-ready-drbd [OPTION]... PM
-#EXAMPLE
-#	pmc-pm-ready-drbd -v PM
-#DESCRIPTION
-		-h | --help) #display help and exit
+#@ HELP_START
+#@ NAME
+#@ 	pmc-pm-ready-drbd - ready a PM to start VMs
+#@ SYNOPSIS
+#@ 	pmc-pm-ready-drbd [OPTION]... PM
+#@ EXAMPLE
+#@ 	pmc-pm-ready-drbd -v PM
+#@ DESCRIPTION
+		-h | --help) #@ display help and exit
 			die ;;
-		--version)	#display version and exit
-			die "20220918" ;;
-		-v | --verbose)	#verbose output
+		--version)	#@ display version and exit
+			die 20250731 ;;
+		-v | --verbose)	#@ verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -28,14 +28,14 @@ do
 			break ;;
 		*)
 			break ;;
-#AUTHOR
-#	Manhong Dai, manhongdai@gmail.com
-#COPYRIGHT
-#	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#	This is free software: you are free to change and redistribute it.
-#	There is NO WARRANTY, to the extent permitted by law.
-#HELPME_END
+#@ AUTHOR
+#@ 	Manhong Dai, manhongdai@gmail.com
+#@ COPYRIGHT
+#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
+#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+#@ 	This is free software: you are free to change and redistribute it.
+#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@ HELP_END
 	esac
 done
 element_in_array $PM ${PM_LIST[@]} || die "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
