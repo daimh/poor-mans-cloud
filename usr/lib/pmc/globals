@@ -3,6 +3,7 @@ set -Eeuo pipefail
 VERBOSE=""
 trap "exit 1" TERM
 function die {
+	# 20251206
 	if [ $# -gt 0 ]
 	then
 		echo -e "$1" 1>&2
@@ -10,11 +11,25 @@ function die {
 		grep '#@' /proc/$$/fd/255 \
 			| sed -n '/^#@ HELP_START/,/^#@ HELP_END/p' \
 			| grep -v "^#@ HELP_" \
-			| sed "s/#@//; s/ \+/ /; s/\t\+/\t/; s/^ //"
+			| sed "
+				s/^#@//;
+				s/) #@ =/=/;
+				s/) #@ /\n\t\t/;
+				s/\t#@ /\t/;
+				s/ \+/ /;
+				s/^\t\t/\t/;
+				s/^ //" \
+			| sed "
+				s/\t/    /g;
+				s/ | /, /"
 	fi
-	kill 0
+	Pgid=$(ps -o pgid= $$ | tr -d " ")
+	[ $(cat /proc/$Pgid/task/$Pgid/children | wc -w) -lt 2 ] \
+		&& exit \
+		|| kill 0
 }
 DIE_FUNC=$(type die | tail -n +2)
+
 function element_in_array() {
 	local e match="$1"
 	shift
@@ -24,13 +39,14 @@ function element_in_array() {
 	done
 	return 1
 }
+
 function delete_vm_from_pm() {
 	ssh -T $2 << EOF
 $VERBOSE
 if virsh dominfo $1 &> /dev/null
 then
-	virsh destroy $1
-	virsh undefine $1
+	virsh destroy $1 || :
+	virsh undefine $1 --nvram || :
 fi
 if drbdadm status $1 &> /dev/null
 then
@@ -46,9 +62,10 @@ then
 	echo rm /etc/drbd.d/$1.res
 	rm /etc/drbd.d/$1.res
 fi
-exit 0
+exit
 EOF
 }
+
 function get_pm_vm_list() {
 	DIE_FUNC=$(type die | tail -n +2)
 	for PM in ${PM_LIST[@]}
@@ -56,15 +73,20 @@ function get_pm_vm_list() {
 		ssh -T $PM << EOF
 $VERBOSE
 $DIE_FUNC
-virsh list --all |tail -n +3| sed "/^$/d; s/shut off/shutoff/" |cut -c 7- | while read VM STAT
+virsh list --all | tail -n +3 | sed "/^$/d; s/shut off/shutoff/" \
+	| cut -c 7- | while read VM STAT
 do
-	[ -f /etc/drbd.d/\$VM.res ] || die "ERR-2401: \$VM is still defined on host $PM, but no such a drbd drvice exists"
+	[ -f /etc/drbd.d/\$VM.res ] \
+		|| die "ERR-2401: \$VM is still defined on host $PM, \
+			but no such a drbd drvice exists"
 	DRBD=\$(drbdadm status \$VM 2> /dev/null | grep "^  disk:" | cut -c 8-)
-	VID=\$(grep "device /dev/drbd" /etc/drbd.d/\$VM.res | sed -e "s/.* minor //; s/;//")
-	MEM=\$(virsh dominfo \$VM |grep "Max memory" |sed -e "s/\s\s*/ /g" |cut -d " " -f 3)
+	VID=\$(grep "device /dev/drbd" /etc/drbd.d/\$VM.res \
+		| sed -e "s/.* minor //; s/;//")
+	MEM=\$(virsh dominfo \$VM |grep "Max memory" |sed -e "s/\s\s*/ /g" \
+		| cut -d " " -f 3)
 	echo -e "\$VM\t\$STAT\t$PM\t\$DRBD\t\$VID\t\$MEM"
 done
-exit 0
+exit
 EOF
 done
 }

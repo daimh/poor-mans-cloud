@@ -7,17 +7,17 @@ do
 	case "$1" in
 #@ HELP_START
 #@ NAME
-#@ 	pmc-vm-ls - list all VMs
+#@ 	pmc-vm-ls - list all virtual machines (VMs)
 #@ SYNOPSIS
 #@ 	pmc-vm-ls [OPTION]...
-#@ EXAMPLE
+#@ EXAMPLES
 #@ 	pmc-vm-ls
 #@ DESCRIPTION
-		-h | --help)	#@ display help and exit
+		-h | --help) #@ display this help message and exit
 			die ;;
-		--version)	#@ display version and exit
-			die 20250731 ;;
-		-v)	#@ verbose output
+		--version) #@ display version information and exit
+			die 20251206 ;;
+		-v | --verbose) #@ enable verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -26,12 +26,12 @@ do
 		*)
 			break ;;
 #@ AUTHOR
-#@ 	Manhong Dai, manhongdai@gmail.com
+#@ 	Manhong Dai <manhongdai@gmail.com>
 #@ COPYRIGHT
-#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#@ 	This is free software: you are free to change and redistribute it.
-#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@	Copyright © 2025 MIT License.
+#@	This is free software: you are free to use, modify, and redistribute it
+#@	under the terms of the MIT License. There is NO WARRANTY, to the extent
+#@	permitted by law.
 #@ HELP_END
 	esac
 done
@@ -41,8 +41,11 @@ then
 fi
 get_pm_vm_list | sort -t '	' -k 1,1 | python -c "
 import sys
+
+
 def print_vm(lst):
-	if len(lst) == 0: return
+	if len(lst) == 0:
+		return
 	running = '-'
 	vid = None
 	for fs in lst:
@@ -52,7 +55,12 @@ def print_vm(lst):
 			vid = fs[4]
 		elif vid != fs[4]:
 			raise Exception('ERR-4003')
-	print(lst[0][0], lst[0][4], running, '\t'.join(['%s:%s:%d' % (fs[2], fs[3], int(fs[5])/1048576) for fs in lst]), sep='\t')
+	print(
+		lst[0][0], lst[0][4], running,
+		'\t'.join(['%s:%s:%d' % (fs[2], fs[3], int(fs[5])/1048576) for fs in lst]),
+		sep='\t'
+	)
+
 
 def main():
 	print('VM', 'VID', 'AT', 'PM:DRBD:MEM(G)...', sep='\t')
@@ -64,6 +72,8 @@ def main():
 			vm, lst = fs[0], []
 		lst.append(fs)
 	print_vm(lst)
+
+
 if __name__ == '__main__':
 	main()
 " | column -t

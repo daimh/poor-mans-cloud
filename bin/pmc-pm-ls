@@ -10,14 +10,14 @@ do
 #@ 	pmc-pm-ls - list all PMs
 #@ SYNOPSIS
 #@ 	pmc-pm-ls [OPTION]...
-#@ EXAMPLE
+#@ EXAMPLES
 #@ 	pmc-pm-ls
 #@ DESCRIPTION
-		-h | --help) #display help and exit
+		-h | --help) #@ display this help message and exit
 			die ;;
-		--version)	#display version and exit
-			die 20250731 ;;
-		-v) #@ verbose output
+		--version) #@ display version information and exit
+			die 20251206 ;;
+		-v) #@ enable verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
@@ -26,12 +26,12 @@ do
 		*)
 			break ;;
 #@ AUTHOR
-#@ 	Manhong Dai, manhongdai@gmail.com
+#@ 	Manhong Dai <manhongdai@gmail.com>
 #@ COPYRIGHT
-#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#@ 	This is free software: you are free to change and redistribute it.
-#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@	Copyright © 2025 MIT License.
+#@	This is free software: you are free to use, modify, and redistribute it
+#@	under the terms of the MIT License. There is NO WARRANTY, to the extent
+#@	permitted by law.
 #@ HELP_END
 	esac
 done
@@ -39,12 +39,15 @@ if [ $# -ne 0 ]
 then
 	die "ERR-4002: use -h/--help"
 fi
-get_pm_vm_list | sort -t '	' -k 3,3 -k 1,1 | python -c "
+get_pm_vm_list | sort -t $'\t' -k 3,3 -k 1,1 | python -c "
 import sys
+
+
 def append_pm(lst, pm_list):
 	rpt_virt = ['running', 'shutoff']
 	rpt_drbd = ['UpToDate', 'Inconsistent']
-	if len(lst) == 0: return
+	if len(lst) == 0:
+		return
 	mem_virt, cnt_virt, cnt_drbd, vm_list = {}, {}, {}, []
 	for fs in lst:
 		mem_virt[fs[1]] = mem_virt.get(fs[1], 0) + int(fs[5])
@@ -53,19 +56,27 @@ def append_pm(lst, pm_list):
 			cnt_drbd[fs[3]] = cnt_drbd.get(fs[3], 0) + 1
 		vm_list.append(fs[0])
 	for k in cnt_virt.keys():
-		if k not in rpt_virt: raise Exception('ERR-5001, contact developer to modify this program')
+		if k not in rpt_virt:
+			raise Exception(f'ERR-5001, {k}, {cnt_virt}, {rpt_virt}')
 	for k in cnt_drbd.keys():
-		if k not in rpt_drbd: raise Exception('ERR-5002, contact developer to modify this program')
+		if k != 'Diskless' and k not in rpt_drbd:
+			raise Exception(f'ERR-5002, {k}, {cnt_drbd}, {rpt_drbd}')
 	row = [lst[0][2]]
 	for k in rpt_virt:
 		row.append(str(cnt_virt.get(k, 0)))
 		row.append('%d' % (mem_virt.get(k, 0)/1048576))
-	for k in rpt_drbd: row.append(str(cnt_drbd.get(k, 0)))
+	for k in rpt_drbd:
+		row.append(str(cnt_drbd.get(k, 0)))
 	row.append(','.join(vm_list))
 	pm_list.append(row)
 
+
 def main():
-	print('PM', 'RunningVmCnt', 'RunningVmMem(G)', 'ShutoffVMCnt', 'ShutoffVMMem(G)', 'UpToDateDRBD', 'InconsistentDRBD', 'VmList', sep='\t')
+	print(
+		'PM', 'RunningVmCnt', 'RunningVmMem(G)', 'ShutoffVMCnt',
+		'ShutoffVMMem(G)', 'UpToDateDRBD', 'InconsistentDRBD', 'VmList',
+		sep='\t'
+	)
 	pm, lst = None, []
 	pm_list = []
 	for ln in sys.stdin:
@@ -81,6 +92,7 @@ def main():
 			pm_list.append([pm, '0', '0', '0', '0', '0', '0'])
 	for row in sorted(pm_list):
 		print('\t'.join(row))
+
 
 if __name__ == '__main__':
 	main()

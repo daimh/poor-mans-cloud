@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 . /etc/pmc.conf
-Force=No
-OPTS=$(getopt -o hvf --long help,version,force -n "$(basename $0)" -- "$@")
+OPTS=$(getopt -o hv --long help,version -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while [ $# -gt 0 ]
 do
 	case "$1" in
 #@ HELP_START
 #@ NAME
-#@ 	pmc-vm-rm - remove a virtual machine (VM)
+#@ 	pmc-pm-drbd-up - activate all DRBD devices on a physical host (PM)
 #@ SYNOPSIS
-#@ 	pmc-vm-rm [OPTION]... VM
+#@ 	pmc-pm-drbd-up [OPTION]... PM
 #@ EXAMPLES
-#@ 	pmc-vm-rm wsus
+#@ 	pmc-pm-drbd-up -v PM
 #@ DESCRIPTION
 		-h | --help) #@ display this help message and exit
 			die ;;
@@ -22,12 +21,9 @@ do
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
-		-f | --force) #@ remove the VM without prompting for confirmation
-			Force=Yes
-			shift ;;
 		--)
-			[ $# -eq 2 ] || die "ERR-3001: VM is missing"
-			VM=$2
+			[ $# -eq 2 ] || die "ERR-1001: PM is missing"
+			PM=$2
 			shift 2
 			break ;;
 		*)
@@ -42,23 +38,14 @@ do
 #@ HELP_END
 	esac
 done
-if [ $# -ne 0 ]
-then
-	die "ERR-3002: use -h/--help"
-fi
-if [ "$Force" != Yes ]
-then
-	read -p "Deleting \"$VM\", type \"$VM\" to confirm: " ANS
-	if [ "$ANS" != "$VM" ]
-	then
-		echo "# Quit"
-		exit 1
-	fi
-fi
-
-##Set/Get IP and Mac
-for PM in ${PM_LIST[@]}
-do
-	echo "# Checking $PM"
-	delete_vm_from_pm $VM $PM
-done
+element_in_array $PM ${PM_LIST[@]} \
+	|| die "ERR-1002: $PM is not defined in PM_LIST in /etc/pmc.conf"
+ssh -n $PM "
+$VERBOSE
+set -Eeuo pipefail
+vgchange -ay $VG_NAME
+sleep 3
+modprobe drbd
+drbdadm up all || :
+drbdadm status
+"

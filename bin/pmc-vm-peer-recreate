@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+. /etc/pmc.conf
+PRIMARY=""
+Short="hvp:"
+Long="help,version,physical-host:"
+OPTS=$(getopt -o $Short --long $Long -n "$(basename $0)" -- "$@")
+eval set -- "$OPTS"
+while [ $# -gt 0 ]
+do
+	case "$1" in
+#@ HELP_START
+#@ NAME
+#@ 	pmc-vm-peer-recreate - recreate a virtual machine (VM) peer on a physical \
+#@			host (PM)
+#@ SYNOPSIS
+#@ 	pmc-vm-peer-recreate [OPTION]... PM VM
+#@ EXAMPLES
+#@ 	pmc-vm-peer-recreate pm-1 apache
+#@ DESCRIPTION
+		-h | --help) #@ display this help message and exit
+			die ;;
+		--version) #@ display version information and exit
+			die 20251206 ;;
+		-v | --verbose) #@ enable verbose output
+			VERBOSE="set -x"
+			$VERBOSE
+			shift ;;
+		-p | --physical-host) #@ =[FROM]
+			#@ specify the source of the virtual machine instead of
+			#@ automatically detecting it
+			PRIMARY=$2
+			host $PRIMARY &> /dev/null \
+				|| die "ERR-7001: $PRIMARY is not a valid physical host"
+			shift 2 ;;
+		--)
+			break ;;
+		*)
+			break ;;
+#@ AUTHOR
+#@ 	Manhong Dai <manhongdai@gmail.com>
+#@ COPYRIGHT
+#@	Copyright © 2025 MIT License.
+#@	This is free software: you are free to use, modify, and redistribute it
+#@	under the terms of the MIT License. There is NO WARRANTY, to the extent
+#@	permitted by law.
+#@ HELP_END
+	esac
+done
+[ $# -eq 3 ] || die "ERR-7004: use -h/--help"
+NEW=$2
+VM=$3
+declare -a OLD
+for PM in ${PM_LIST[@]}
+do
+	read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null \
+		| grep \"^State:\"; exit 0" ) || continue
+	if [ "$STATE" = "running" ]
+	then
+		if [ "$PRIMARY" = "" ]
+		then
+			PRIMARY=$PM
+		elif [ "$PRIMARY" != "$PM" ]
+		then
+			die "ERR-7005: the VM is running on $PM, but you specified \"-F $PRIMARY\""
+		fi
+	elif [ "$STATE" = "shut off" ]
+	then
+		OLD+=($PM)
+	fi
+done
+[ "$PRIMARY" != "" ] \
+	|| die "ERR-7006: invalid $VM. If it is not running, please specify -F"
+for OPM in ${OLD[@]}
+do
+	[ "$OPM" == "$PRIMARY" ] && continue
+	if [ "$OPM" = "$NEW" ]
+	then
+		read -p "Recreating drbd device $VM on $OPM, type \"$OPM\" to continue: " ANS
+	else
+		read -p "Deleting drbd device $VM on $OPM, type \"$OPM\" to continue: " ANS
+	fi
+	if [ "$ANS" != "$OPM" ]
+	then
+		echo "#Quit"
+		exit 1
+	fi
+	delete_vm_from_pm $VM $OPM
+done
+IPP=$(host $PRIMARY | cut -d " " -f 4)
+[ "$IPP" != "" ] || die "ERR-7007: cannot resolve $PRIMARY to ip address"
+IPS=$(host $NEW | cut -d " " -f 4)
+[ "$IPS" != "" ] || die "ERR-7008: cannot resolve $NEW to ip address"
+ssh -T $PRIMARY << EOF
+	$VERBOSE
+	set -Eeuo pipefail
+	VID=\$(grep "^	device /dev/drbd" /etc/drbd.d/$VM.res \
+		| sed -e "s/;//; s/^.*minor //")
+	let PORT=7778+\$VID
+	sed -e "/\ton /I,+2 d" /etc/drbd.d/$VM.res \
+		| sed -e "s/\tdisk {/\ton $PRIMARY {\n\t\taddress $IPP:\$PORT;\n\
+\t}\n\ton $NEW {\n\t\taddress $IPS:\$PORT;\n\t}\n\tdisk {/" \
+		> /etc/drbd.d/$VM.res.new
+	cp /etc/drbd.d/$VM.res /etc/drbd.d/$VM.res.old
+	mv /etc/drbd.d/$VM.res.new /etc/drbd.d/$VM.res
+	drbdadm adjust $VM
+	rsync -a /etc/drbd.d/$VM.res $NEW:/etc/drbd.d/
+	rsync -a /etc/libvirt/qemu/$VM.xml $NEW:/etc/libvirt/qemu/
+EOF
+STORAGE=$(ssh -n $PRIMARY lvdisplay $VG_NAME/$VM | grep "Current LE" \
+	| sed -e "s/\s\s*/ /g" | cut -d " " -f 4)
+ssh -T $NEW << EOF
+	$VERBOSE
+	set -Eeuo pipefail
+	echo y | lvcreate -l $STORAGE -n $VM $VG_NAME
+	drbdadm create-md $VM --force
+	drbdadm up $VM
+	drbdadm disconnect $VM
+	drbdadm connect --discard-my-data $VM
+	virsh define /etc/libvirt/qemu/$VM.xml
+EOF

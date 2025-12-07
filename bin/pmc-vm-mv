@@ -4,7 +4,8 @@ function move_vm() {
 	VM=$1
 	for PM in ${PM_LIST[@]}
 	do
-		read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null |grep \"^State:\"; exit 0" ) || continue
+		read TMP STATE < <( ssh -n $PM "virsh dominfo $VM 2>/dev/null \
+			| grep \"^State:\"; exit 0" ) || continue
 		if [ "$STATE" = "running" ]
 		then
 			PRIMARY=$PM
@@ -15,6 +16,7 @@ function move_vm() {
 	done
 	[[ -v PRIMARY ]] || die "ERR-6003: no such an active VM $VM"
 	[[ -v SECONDARY ]] || die "ERR-6004: This VM is not created on two PMs"
+	echo "#### Live Migrating $VM from $PRIMARY to $SECONDARY"
 	if ! ssh -T $SECONDARY << EOF
 		$VERBOSE
 		set -Eeuo pipefail
@@ -24,7 +26,11 @@ EOF
 	then
 		die "ERR-6005: This VM's drbd is not in a normal status"
 	fi
-	echo "#Live Migrating $VM from $PRIMARY to $SECONDARY"
+	diff -q \
+		<(ssh $PRIMARY sha256sum /etc/libvirt/qemu/$VM.xml) \
+		<(ssh $SECONDARY sha256sum /etc/libvirt/qemu/$VM.xml) \
+		> /dev/null \
+		|| die "ERR-6006: /etc/libvirt/qemu/$VM.xml are different"
 	if ssh -n $PRIMARY virsh migrate --live $VM qemu+ssh://$SECONDARY/system
 	then
 		ssh -n $PRIMARY drbdadm secondary $VM
@@ -33,47 +39,70 @@ EOF
 	fi
 }
 
-OPTS=$(getopt -o hv --long help,version -n "$(basename $0)" -- "$@")
+PM=""
+Short="hvp:"
+Long="help,version,physical-host:"
+OPTS=$(getopt -o $Short --long $Long -n "$(basename $0)" -- "$@")
 eval set -- "$OPTS"
 while [ $# -gt 0 ]
 do
 	case "$1" in
 #@ HELP_START
 #@ NAME
-#@ 	pmc-vm-mv - move VM to another PM
+#@ 	pmc-vm-mv - live migrate virtual machines (VMs) to another physical
+#@			host (PM)
 #@ SYNOPSIS
-#@ 	pmc-vm-mv [OPTION]... VM...
-#@ EXAMPLE
-#@ 	pmc-vm-mv wsus
+#@ 	pmc-vm-mv [OPTION]... [VM]...
+#@ EXAMPLES
+#@ 	pmc-vm-mv apache
+#@ 	pmc-vm-mv -p pm-1
 #@ DESCRIPTION
-		-h | --help) #@ display help and exit
+		-h | --help) #@ display this help message and exit
 			die ;;
-		--version)	#@ display version and exit
-			die 20250731 ;;
-		-v)	#@ verbose output
+		--version) #@ display version information and exit
+			die 20251206 ;;
+		-v) #@ enable verbose output
 			VERBOSE="set -x"
 			$VERBOSE
 			shift ;;
+		-p | --physical-host) #@ =[PM]
+			#@ move all VMs off the specified physical host PM
+			PM=$2
+			shift 2 ;;
 		--)
 			shift
 			break ;;
 		*)
 			break ;;
 #@ AUTHOR
-#@ 	Manhong Dai, manhongdai@gmail.com
+#@ 	Manhong Dai <manhongdai@gmail.com>
 #@ COPYRIGHT
-#@ 	Copyright © 2022 Free Software Foundation, Inc. License GPLv3+: GNU
-#@ 	GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-#@ 	This is free software: you are free to change and redistribute it.
-#@ 	There is NO WARRANTY, to the extent permitted by law.
+#@	Copyright © 2025 MIT License.
+#@	This is free software: you are free to use, modify, and redistribute it
+#@	under the terms of the MIT License. There is NO WARRANTY, to the extent
+#@	permitted by law.
 #@ HELP_END
 	esac
 done
-if [ $# -eq 0 ]
+VMS=()
+if [ -n "$PM" ]
+then
+	[ $# -eq 0 ] || die "ERR-6002: VM cannot be used with '-p PM'"
+	while read VM
+	do
+		[ -n "$VM" ] || continue
+		VMS+=($VM)
+	done < <( ssh $PM virsh list --name )
+fi
+for VM in $@
+do
+		VMS+=($VM)
+done
+if [ ${#VMS[@]} -eq 0 ]
 then
 	die "ERR-6001: use -h/--help"
 fi
-for VM in $@
+for VM in ${VMS[@]}
 do
 	move_vm $VM
 done
