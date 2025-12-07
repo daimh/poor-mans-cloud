@@ -25,7 +25,7 @@ function die {
 	fi
 	Pgid=$(ps -o pgid= $$ | tr -d " ")
 	[ $(cat /proc/$Pgid/task/$Pgid/children | wc -w) -lt 2 ] \
-		&& exit \
+		&& exit 1 \
 		|| kill 0
 }
 DIE_FUNC=$(type die | tail -n +2)
